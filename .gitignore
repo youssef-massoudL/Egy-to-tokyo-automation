@@ -1,0 +1,5 @@
+out/
+projects/*/out/
+node_modules/
+__pycache__/
+finish.json

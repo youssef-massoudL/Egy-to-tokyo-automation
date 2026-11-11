@@ -1,0 +1,43 @@
+@font-face{font-family:"Thmanyah Display";src:url("../brand/fonts/ThmanyahDisplay-Bold.woff2") format("woff2");font-weight:700;font-display:block}
+@font-face{font-family:"IBM Plex Sans Arabic";src:url("../brand/fonts/IBM-Regular.ttf") format("truetype");font-weight:400;font-display:block}
+@font-face{font-family:"IBM Plex Sans Arabic";src:url("../brand/fonts/IBM-Medium.ttf") format("truetype");font-weight:500;font-display:block}
+
+:root{
+  --black:#08070b; --purple-black:#11081a; --purple:#38104d; --purple-surface:#281339;
+  --lavender:#d5adef; --white:#ffffff; --text:#eee6f2; --paper:#ece8ee; --ink:#141217; --muted:#9a95a0;
+  --head:"Thmanyah Display"; --body:"IBM Plex Sans Arabic";
+}
+html,body{margin:0;padding:0;background:#000}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;direction:rtl;font-family:var(--body);color:var(--white);
+  background:#1d1c20 url("../library/backgrounds/charcoal-grain-1080x1920.png") center/cover}
+#world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.board{position:absolute;width:1000px;height:860px}
+.abs{position:absolute}
+.c{transform:translate(50%,-50%)} /* rtl: right-anchored centre helper is not used; we position by left/top + xPercent */
+.t{position:absolute;white-space:nowrap;line-height:1.15}
+.head{font-family:var(--head);font-weight:700}
+.kw{color:var(--lavender)}
+.muted{color:var(--muted)}
+bdi.num{direction:ltr;unicode-bidi:isolate}
+
+#headline{position:absolute;top:250px;left:60px;right:60px;text-align:center;font-family:var(--head);font-size:88px;line-height:1.28;z-index:5}
+#headline .w{display:inline-block;margin:0 .12em}
+#captions{position:absolute;top:1452px;left:56px;right:56px;text-align:center;z-index:6}
+#captions .box{display:inline;background:rgba(8,7,11,.78);color:#fff;font-weight:500;font-size:52px;line-height:1.55;
+  padding:6px 22px;border-radius:14px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+#captions .kw{color:var(--lavender)}
+#logo{position:absolute;top:150px;left:70px;width:150px;opacity:.92;z-index:7}
+#grain{position:absolute;inset:-40px;pointer-events:none;z-index:20;opacity:.18;mix-blend-mode:overlay;background-size:256px 256px}
+#vignette{position:absolute;inset:0;pointer-events:none;z-index:19;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.32) 100%)}
+#overlay{position:absolute;inset:0;z-index:15;pointer-events:none}
+
+.card{position:absolute;background:var(--paper);color:var(--ink);border-radius:6px;
+  box-shadow:0 26px 50px rgba(0,0,0,.5),0 2px 0 rgba(255,255,255,.4) inset;
+  background-image:radial-gradient(rgba(0,0,0,.035) 1px,transparent 1px);background-size:5px 5px}
+.tape{position:absolute;width:170px;height:46px;background:rgba(213,173,239,.78);top:-22px;left:50%;margin-left:-85px;transform:rotate(-3deg);
+  box-shadow:0 2px 4px rgba(0,0,0,.15)}
+.tag{position:absolute;background:var(--black);color:#fff;font-weight:500;font-size:36px;padding:8px 20px;border-radius:6px;white-space:nowrap}
+.tag.lav{background:var(--lavender);color:var(--ink)}
+.chip{position:absolute;font-size:26px;color:var(--muted);white-space:nowrap}
+svg.mk{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+img.obj{position:absolute;filter:drop-shadow(0 22px 26px rgba(0,0,0,.55))}

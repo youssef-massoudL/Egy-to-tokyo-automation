@@ -1,0 +1,17 @@
+{
+  "name": "kanz-motion",
+  "version": "1.0.0",
+  "description": "Voice note to Kanz-branded Vox-style explainer Reels",
+  "scripts": {
+    "render": "python engine/make.py render"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "dependencies": {
+    "gsap": "^3.15.0",
+    "three": "^0.170.0"
+  },
+  "private": true
+}

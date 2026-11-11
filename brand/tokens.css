@@ -1,0 +1,4 @@
+@font-face{font-family:"Thmanyah Display";src:url("fonts/ThmanyahDisplay-Bold.woff2") format("woff2");font-weight:700;font-display:block}
+@font-face{font-family:"IBM Plex Sans Arabic";src:url("fonts/IBM-Regular.ttf") format("truetype");font-weight:400;font-display:block}
+@font-face{font-family:"IBM Plex Sans Arabic";src:url("fonts/IBM-Medium.ttf") format("truetype");font-weight:500;font-display:block}
+:root{--kanz-black:#08070b;--kanz-purple-black:#11081a;--kanz-purple:#38104d;--kanz-purple-surface:#281339;--kanz-lavender:#d5adef;--kanz-white:#ffffff;--kanz-text:#eee6f2;--kanz-headline:"Thmanyah Display";--kanz-body:"IBM Plex Sans Arabic"}

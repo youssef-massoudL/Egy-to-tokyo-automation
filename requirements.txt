@@ -1,0 +1,5 @@
+# Python 3.11+. faster-whisper is only needed for the voice-note route; engine/make.py runs it on
+# demand through `uv run --with faster-whisper`, so it is not listed here.
+numpy>=2.0
+Pillow>=10.0
+playwright>=1.45

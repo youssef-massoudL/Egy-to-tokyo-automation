@@ -1,0 +1,92 @@
+name: EGX close reel
+on:
+  schedule:
+    # EGX trades Sun-Thu. Cairo is UTC+2 in winter and UTC+3 in summer, so two slots; the release-tag guard stops the duplicate.
+    - cron: "15 11,12 * * 0-4"
+  workflow_dispatch: {}
+concurrency:
+  group: egx-close
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  reel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      RADAR_OUT: ${{ github.workspace }}/out
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Date (Cairo) and already-made guard
+        id: guard
+        run: |
+          D=$(TZ=Africa/Cairo date +%F)
+          echo "date=$D" >> "$GITHUB_OUTPUT"
+          if gh release view "egx-$D" >/dev/null 2>&1; then echo "skip=true" >> "$GITHUB_OUTPUT"; else echo "skip=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Install
+        if: steps.guard.outputs.skip == 'false'
+        run: |
+          pip install -r requirements.txt psycopg2-binary
+          npm ci
+          python -m playwright install --with-deps chromium
+          sudo apt-get install -y ffmpeg
+      - name: Too early check
+        id: check
+        if: steps.guard.outputs.skip == 'false'
+        run: |
+          set +e
+          python projects/_radar/run_edition.py egx check
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Wait for the close and fetch
+        id: fetch
+        if: steps.guard.outputs.skip == 'false' && steps.check.outputs.code == '0'
+        run: |
+          set +e
+          python projects/_radar/run_edition.py egx fetch --wait
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Cross-check against Kanz and use spot gold
+        if: steps.fetch.outputs.code == '0'
+        env:
+          KANZ_DB_URL: ${{ secrets.KANZ_DB_URL }}
+        run: |
+          set +e
+          python cloud/kanz_validate.py
+          c=$?
+          if [ "$c" != "0" ] && [ "$c" != "6" ]; then exit $c; fi
+          exit 0
+      - name: Render
+        if: steps.fetch.outputs.code == '0'
+        run: python projects/_radar/run_edition.py egx render
+      - name: Checks and validation note
+        if: steps.fetch.outputs.code == '0'
+        run: python cloud/finish.py "out/${{ steps.guard.outputs.date }}"
+      - name: Publish private release
+        if: steps.fetch.outputs.code == '0'
+        id: rel
+        run: |
+          D=${{ steps.guard.outputs.date }}
+          gh release create "egx-$D" out/$D/* --title "EGX close reel $D" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"
+          echo "url=$(gh release view egx-$D --json url -q .url)" >> "$GITHUB_OUTPUT"
+      - name: Slack
+        if: steps.fetch.outputs.code == '0'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RELEASE_URL: ${{ steps.rel.outputs.url }}
+        run: python cloud/slack_notify.py
+      - name: Slack on failure
+        if: failure() && steps.guard.outputs.skip == 'false'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          curl -sS -X POST -H "Content-Type: application/json" --data "{\"text\":\":x: EGX close reel failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" "$SLACK_WEBHOOK_URL"

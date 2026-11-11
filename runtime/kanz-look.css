@@ -1,0 +1,63 @@
+/* Kanz look v2 (2026-10-10): opt-in additions for new videos. Loaded after kanz.css by projects
+ * created from projects/_template; finished projects never load it, so their re-renders are unchanged.
+ * Everything here is scoped to #stage.look2 or to classes only kanz-look.js creates. */
+
+/* ---- platform safe zones (see docs/LOOK-V2.md): captions and headline sit inside them ---- */
+#stage.look2 #headline{top:300px;left:120px;right:120px}
+#stage.look2 #captions{top:1268px;left:120px;right:120px}
+
+/* ---- light: a soft key light under the content, a deeper vignette over it ---- */
+#keylight{position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 75% 42% at 50% 44%,rgba(255,255,255,.075) 0%,rgba(255,255,255,.025) 45%,rgba(255,255,255,0) 72%)}
+#stage.look2 #world{z-index:1}
+#stage.look2 #vignette{background:radial-gradient(ellipse 95% 70% at 50% 46%,rgba(0,0,0,0) 50%,rgba(0,0,0,.42) 100%)}
+#stage.look2 img.obj{filter:drop-shadow(0 18px 22px rgba(0,0,0,.5)) drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+
+/* contact shadow on the ground under an object, and a lavender glow behind the focus */
+.kshadow{position:absolute;pointer-events:none;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(0,0,0,.62) 0%,rgba(0,0,0,.34) 40%,rgba(0,0,0,0) 70%)}
+.kglow{position:absolute;pointer-events:none;border-radius:50%;mix-blend-mode:screen;
+  background:radial-gradient(circle at center,rgba(213,173,239,.34) 0%,rgba(150,85,200,.16) 38%,rgba(56,16,77,0) 70%)}
+
+/* ---- evidence: genuine document / website screenshot on paper, with a source line ---- */
+.kdoc{position:absolute;background:var(--paper);padding:16px;border-radius:4px;
+  box-shadow:0 30px 60px rgba(0,0,0,.55),0 2px 0 rgba(255,255,255,.4) inset}
+.kdoc>img.shot{display:block;width:100%;height:auto;border-radius:2px}
+.kdoc .kmark{position:absolute;background:rgba(213,173,239,.62);mix-blend-mode:multiply;transform-origin:100% 50%;border-radius:3px}
+.kdoc .kframe{position:absolute;border:5px solid var(--lavender);border-radius:6px;transform-origin:100% 50%}
+.ksrc{position:absolute;white-space:nowrap;font-size:26px;color:#c7c2cc;background:rgba(8,7,11,.72);padding:6px 16px;border-radius:6px}
+
+/* ---- photo in the approved treatment: grayscale, quiet surroundings, credit tag ---- */
+.kphoto{position:absolute;overflow:hidden;border-radius:6px;box-shadow:0 30px 60px rgba(0,0,0,.55)}
+.kphoto>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform-origin:50% 50%}
+.kphoto.grade>img{filter:grayscale(1) contrast(1.06) brightness(.92)}
+.kphoto.grade::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse 80% 75% at 50% 45%,rgba(17,8,26,0) 40%,rgba(17,8,26,.55) 100%),rgba(56,16,77,.08)}
+
+/* ---- maps: grayscale base, lavender pins and outlines ---- */
+.kmap{position:absolute;filter:grayscale(1) brightness(.75) contrast(1.05)}
+.kpin{position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:var(--lavender);
+  box-shadow:0 0 0 10px rgba(213,173,239,.28),0 6px 14px rgba(0,0,0,.5)}
+
+/* ---- numbers ---- */
+.kcount{position:absolute;white-space:nowrap;line-height:1.1}
+
+/* ---- review-only overlay (lint screenshots); never shown in renders ---- */
+#safeguide{position:absolute;inset:0;pointer-events:none;z-index:40}
+#safeguide div{position:absolute;background:rgba(229,83,75,.22)}
+#safeguide .frame{background:none;border:3px dashed rgba(229,83,75,.9)}
+
+/* ---- a second world for chapter changes: light paper (K.world, approved 2026-10-11) ---- */
+#paperworld{position:absolute;inset:0;z-index:0;pointer-events:none;background:var(--paper);
+  background-image:radial-gradient(rgba(0,0,0,.05) 1px,transparent 1px);background-size:5px 5px}
+#stage[data-world=paper] #keylight{opacity:0}
+#stage[data-world=paper] #vignette{opacity:.35}
+#stage[data-world=paper] #headline,#stage[data-world=paper] #world .t{color:var(--ink)!important}
+#stage[data-world=paper] #world .muted{color:#6b6573!important}
+#stage[data-world=paper] #logo{filter:brightness(.08)} /* a logo must contrast with its background: dark on paper (Ahmed 2026-10-11) */
+#stage[data-world=paper] #world .t[style*="rgb(213, 173, 239)"],#stage[data-world=paper] #headline .kw,
+#stage[data-world=paper] #world .t .kw{color:var(--purple)!important}
+#stage[data-world=paper] svg.mk polyline[stroke="#f4e8fb"],#stage[data-world=paper] svg.mk path[stroke="#fff"]{stroke:var(--ink)}
+#stage[data-world=paper] svg.mk path[stroke="#d5adef"]{stroke:#7b4fa3}
+#stage[data-world=paper] svg.mk line[stroke^="rgba(255"]{stroke:rgba(20,18,23,.25)}
+#stage[data-world=paper] .kglow{opacity:.35!important}

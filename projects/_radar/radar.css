@@ -1,0 +1,95 @@
+/* Market Radar, Kanz identity (brand/tokens.json): charcoal grain, purple-black surfaces, lavender as the pointing colour,
+ * white Thmanyah headlines, IBM Plex Sans Arabic text. Red only for genuine losses (the percentages and the bars). */
+:root{--loss:#e5534b;--loss-deep:#a8322d;--line:rgba(213,173,239,.32)}
+#stage .ui{position:absolute;z-index:15}
+.hdr{left:80px;width:920px;top:290px;height:64px;background:var(--purple-black);border:1.5px solid var(--line);border-radius:12px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 26px;box-sizing:border-box;direction:rtl}
+.hdr img{height:26px;display:block}
+.hdr .tt{font-size:28px;font-weight:500;color:#fff;white-space:nowrap}
+.hdr .tt b{font-weight:500;color:var(--lavender)}
+.chip2{background:var(--purple-black);border:1.5px solid var(--line);border-radius:10px;padding:8px 16px;font-size:30px;font-weight:500;white-space:nowrap;direction:rtl}
+.chip2 .up{color:var(--lavender)} .chip2 .dn{color:var(--loss)}
+.chip2 .nm{margin-left:14px}
+.pill{background:rgba(229,83,75,.2);border:1.5px solid rgba(229,83,75,.7);color:#ff9a93;font-size:30px;font-weight:500;padding:9px 24px;border-radius:10px;white-space:nowrap}
+.pill.lav{background:var(--lavender);border:0;color:var(--ink);font-size:32px}
+.ttl{font-family:var(--head);font-weight:700;color:#fff;white-space:nowrap;line-height:1.15}
+.num8{font-family:var(--head);font-weight:700;color:var(--lavender);line-height:1;font-size:150px;text-align:right;direction:ltr}
+.lbl{font-family:var(--head);font-weight:700;color:#fff;font-size:48px;line-height:1.12;text-align:right;white-space:nowrap}
+.lbl em{font-style:normal;color:var(--loss)}
+.src{font-size:24px;color:#a49ead;white-space:nowrap;direction:rtl}
+.src i{display:inline-block;width:46px;height:3px;background:var(--lavender);margin-right:14px;vertical-align:middle;border-radius:2px}
+/* index card anchored to a pin */
+.mk-card{position:absolute;z-index:14;background:var(--purple-black);border:1.5px solid var(--line);border-radius:12px;padding:12px 22px 12px 24px;
+  box-sizing:border-box;white-space:nowrap;box-shadow:0 14px 34px rgba(0,0,0,.5);direction:rtl;pointer-events:none}
+.mk-card .r1{display:flex;align-items:center;justify-content:flex-start;gap:16px;direction:rtl}
+.mk-card .nm{font-family:var(--head);font-weight:700;font-size:44px;line-height:1.1;color:#fff}
+.mk-card .pc{font-size:44px;font-weight:500;color:var(--loss);direction:ltr;unicode-bidi:isolate}
+.mk-card .tri{width:0;height:0;border-left:11px solid transparent;border-right:11px solid transparent;border-top:18px solid var(--loss)}
+.mk-card .sub{font-size:24px;color:#a49ead;margin-top:3px;text-align:right;direction:rtl}
+.mk-link{position:absolute;z-index:13;width:2px;background:var(--line);pointer-events:none}
+.mk-pin{position:absolute;left:0;top:0;z-index:14;width:0;height:0;pointer-events:none}
+.mk-pin .dot{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:var(--black);border:6px solid var(--lavender);box-sizing:border-box;
+  box-shadow:0 0 0 8px rgba(213,173,239,.18),0 6px 16px rgba(0,0,0,.55)}
+.mk-pin .ring{position:absolute;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;border:2px solid rgba(213,173,239,.75);box-sizing:border-box}
+/* ranking panel */
+.panel{left:120px;width:840px;top:648px;background:var(--purple-black);border:1.5px solid var(--line);border-radius:14px;padding:18px 26px;box-sizing:border-box;direction:rtl;
+  box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.row{display:flex;align-items:center;height:51px;direction:rtl;position:relative}
+.row .who{width:300px;display:flex;align-items:baseline;gap:12px;white-space:nowrap;flex:none}
+.row .who b{font-family:var(--head);font-weight:700;font-size:33px;color:#fff;line-height:1}
+.row .who span{font-size:20px;color:#a49ead}
+.row .hl{position:absolute;left:-8px;right:-10px;top:3px;bottom:3px;border:2px solid var(--lavender);border-radius:9px;opacity:0;box-shadow:0 0 24px rgba(213,173,239,.35)}
+.titlecard{background:#1d1c20 url('../../library/backgrounds/charcoal-grain-1080x1920.png') center/cover}
+.titlecard .glow{position:absolute;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(213,173,239,.30) 0%,rgba(120,60,170,.16) 40%,rgba(56,16,77,0) 70%)}
+
+/* ---- daily: direction colours (up = lavender, loss = red, closed = grey) ---- */
+.pill.mix{background:rgba(213,173,239,.16);border:1.5px solid rgba(213,173,239,.7);color:var(--lavender)}
+.pill.upm{background:var(--lavender);border:0;color:var(--ink)}
+.mk-card .pc.up{color:var(--lavender)} .mk-card .pc.cl{color:#a49ead}
+.mk-card .tri.up{border-top:0;border-bottom:18px solid var(--lavender)} .mk-card .tri.cl{display:none}
+.mk-pin.dn .dot{border-color:var(--loss);box-shadow:0 0 0 8px rgba(229,83,75,.2),0 6px 16px rgba(0,0,0,.55)}
+.mk-pin.dn .ring{border-color:rgba(229,83,75,.8)}
+.mk-pin.cl .dot{border-color:#8b8494;box-shadow:0 0 0 8px rgba(139,132,148,.2),0 6px 16px rgba(0,0,0,.55)}
+.mk-pin.cl .ring{border-color:rgba(139,132,148,.7)}
+.num8.dn{color:var(--loss)}
+.lbl em.up{color:var(--lavender)}
+/* diverging ranking: one zero line, gains to the right, losses to the left, one scale */
+.row .track{position:relative;flex:1;height:100%;direction:ltr}
+.row .zero{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:rgba(213,173,239,.38)}
+.row .seg{position:absolute;top:0;bottom:0;display:flex;align-items:center;direction:ltr}
+.row .seg.dn{flex-direction:row-reverse}
+.row .bar{height:30px;border-radius:4px;width:0;flex:none}
+.row .seg.up .bar{background:linear-gradient(90deg,var(--lavender) 0%,#9b6bbd 100%);box-shadow:0 0 14px rgba(213,173,239,.28)}
+.row .seg.dn .bar{background:linear-gradient(270deg,var(--loss) 0%,var(--loss-deep) 100%);box-shadow:0 0 14px rgba(229,83,75,.28)}
+.row .val{font-size:32px;font-weight:500;margin:0 12px;direction:ltr;unicode-bidi:isolate;opacity:0;white-space:nowrap;flex:none}
+.row .seg.up .val{color:var(--lavender)} .row .seg.dn .val{color:var(--loss)} .row .seg.cl .val{color:#a49ead;font-size:28px}
+
+/* ---- daily v2 (3 Nov): smaller bottom block, brighter lavender ---- */
+.strip{display:flex;gap:12px;align-items:center;direction:rtl}
+.strip .pill{font-size:23px;padding:8px 20px}
+.strip .chip2{font-size:22px;padding:7px 14px}
+.num8{font-size:118px}
+.lbl{font-size:39px}
+.panel{top:684px}
+.pill.mix{background:var(--lavender);border:0;color:var(--ink);font-weight:600}
+.num8:not(.dn),.lbl em.up,.mk-card .pc.up,.chip2 .up,.row .seg.up .val{text-shadow:0 0 18px rgba(213,173,239,.6),0 0 4px rgba(213,173,239,.35)}
+.mk-card .tri.up{filter:drop-shadow(0 0 6px rgba(213,173,239,.7))}
+.row .seg.up .bar{background:linear-gradient(90deg,#efd9ff 0%,var(--lavender) 55%,#c494e6 100%);box-shadow:0 0 20px rgba(213,173,239,.5)}
+.mk-pin.up .dot{box-shadow:0 0 0 8px rgba(213,173,239,.3),0 0 22px rgba(213,173,239,.55),0 6px 16px rgba(0,0,0,.55)}
+.mk-pin.up .ring{border-color:#e6c8fa}
+.hdr .tt b{text-shadow:0 0 14px rgba(213,173,239,.45)}
+
+/* ---- Europe + US v2: the US cards say what each index is; ranking names column wider for those labels ---- */
+.mk-card .sub em{font-style:normal;color:#fff;font-weight:500;font-size:26px;unicode-bidi:isolate;direction:rtl}
+.row .who{width:var(--who,300px)}
+
+/* hazard (as in the source video: 38 px bands, stripes 37 px wide on the row, 45 degrees), lavender and red stripes on near-black */
+.hz{position:absolute;left:0;width:1080px;height:38px;z-index:17;pointer-events:none;
+  background:repeating-linear-gradient(135deg,var(--lavender) 0 26px,#08070c 26px 52px,var(--loss) 52px 78px,#08070c 78px 104px)}
+.hz.top{top:90px} .hz.bot{top:1792px} /* in from the screen edges by 90 px, top band lower and bottom band higher (user, 4 Nov) */
+.hzw{position:absolute;left:-60px;top:-160px;width:1200px;height:2240px;z-index:17;pointer-events:none;box-shadow:0 0 70px 20px rgba(0,0,0,.65);
+  background:repeating-linear-gradient(135deg,var(--lavender) 0 54px,#08070c 54px 108px,var(--loss) 108px 162px,#08070c 162px 216px)}
+/* the map sinks into the background behind the bottom block. No z-index: it must stay under the UI even when the UI's fade-out (18.4 s) gives it its own stacking context */
+.shade{position:absolute;left:0;right:0;top:1010px;bottom:0;pointer-events:none;background:linear-gradient(180deg,rgba(22,21,26,0) 0,rgba(22,21,26,.88) 170px,rgba(22,21,26,.97) 100%)}
+.panel{top:684px}
+.mk-card{box-shadow:0 14px 34px rgba(0,0,0,.65)}
