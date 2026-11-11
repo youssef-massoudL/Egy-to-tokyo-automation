@@ -14,13 +14,16 @@ ROOT = Path(__file__).resolve().parent.parent
 ed = sys.argv[1]
 test = "--test" in sys.argv
 env = dict(os.environ, RADAR_OUT=str(ROOT / "out"), RADAR_PARALLEL="1", RADAR_TEST="1" if test else "0", PYTHONIOENCODING="utf-8")
-tok = ROOT / ".slack_token"
-if tok.exists():
-    lines = [x.strip() for x in tok.read_text(encoding="utf-8").splitlines() if x.strip()]
-    if len(lines) >= 2:
-        env["SLACK_BOT_TOKEN"], env["SLACK_CHANNEL_ID"] = lines[0], lines[1]
-if "SLACK_BOT_TOKEN" not in env:
-    print("note: no .slack_token found, the reel is made but not sent to Slack")
+
+
+def load_slack():   # read at send time, so the file can be added while the run waits for the close
+    tok = ROOT / ".slack_token"
+    if tok.exists():
+        lines = [x.strip() for x in tok.read_text(encoding="utf-8").splitlines() if x.strip()]
+        if len(lines) >= 2:
+            env["SLACK_BOT_TOKEN"], env["SLACK_CHANNEL_ID"] = lines[0], lines[1]
+    if "SLACK_BOT_TOKEN" not in env:
+        print("note: no .slack_token found, the reel is made but not sent to Slack")
 
 
 def run(*cmd):
@@ -41,6 +44,7 @@ from editions import EDITIONS  # noqa: E402  (cloud/ is on the path when run as 
 proj = ROOT / "projects" / EDITIONS[ed]["project"]
 date = json.loads((proj / "out" / "report.json").read_text(encoding="utf-8"))["date"]
 folder = ROOT / "out" / date
+load_slack()
 if run("cloud/finish.py", ed, str(folder)) or run("cloud/slack_notify.py", ed, str(folder)):
     raise SystemExit("failed at finish / Slack")
 print("done:", folder)
