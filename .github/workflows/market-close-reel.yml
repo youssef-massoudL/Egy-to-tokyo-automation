@@ -59,6 +59,8 @@ jobs:
           if [ "${{ github.event_name }}" = "push" ]; then
             ED=$(python -c "import json;print(json.load(open('.github/test-run.json'))['edition'])")
             echo "ED=$ED" >> "$GITHUB_ENV"
+            SITE=$(python -c "import json;print(str(json.load(open('.github/test-run.json')).get('site', True)).lower())")
+            echo "SITE_TEST=$SITE" >> "$GITHUB_ENV"
           fi
           if [ "$ED" = "us" ]; then D=$(TZ=America/New_York date +%F); else D=$(TZ=Africa/Cairo date +%F); fi
           echo "Edition $ED, date $D"
