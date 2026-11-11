@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kanz Market Close</title>
+<meta name="robots" content="noindex">
+<style>
+  @font-face { font-family: "IBM Plex Sans Arabic"; src: url("fonts/IBM-Regular.ttf"); font-weight: 400; }
+  @font-face { font-family: "IBM Plex Sans Arabic"; src: url("fonts/IBM-Medium.ttf"); font-weight: 500; }
+  @font-face { font-family: "Thmanyah Display"; src: url("fonts/ThmanyahDisplay-Bold.woff2"); font-weight: 700; }
+  :root {
+    --bg: #08070b; --surface: #141217; --line: #281339; --text: #eee6f2; --muted: #9a95a0;
+    --lav: #d5adef; --loss: #e5534b; --closed: #6f6a75;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.6 "IBM Plex Sans Arabic", system-ui, sans-serif; }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+  header img { height: 28px; }
+  h1 { font: 700 clamp(28px, 6vw, 44px)/1.15 "Thmanyah Display", "IBM Plex Sans Arabic", sans-serif; margin: 0 0 4px; }
+  .kick { color: var(--lav); font-weight: 500; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 32px; align-items: start; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+  video { width: 100%; aspect-ratio: 9 / 16; background: var(--surface); border-radius: 14px; display: block; }
+  .date { color: var(--muted); margin: 0 0 18px; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; background: var(--lav); color: #11081a; font-weight: 500;
+         padding: 14px 22px; border-radius: 10px; text-decoration: none; font-size: 17px; }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  .note { display: inline-block; margin: 14px 0 0; font-size: 13px; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 26px; font-variant-numeric: tabular-nums; }
+  td { padding: 9px 4px; border-bottom: 1px solid var(--line); }
+  td.n { text-align: left; direction: ltr; font-weight: 500; }
+  .up { color: var(--lav); } .down { color: var(--loss); } .off { color: var(--closed); }
+  h2 { font-size: 18px; font-weight: 500; margin: 48px 0 12px; }
+  #archive a { color: var(--text); text-decoration: none; display: flex; justify-content: space-between; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+  #archive a:hover { color: var(--lav); }
+  #archive span { color: var(--muted); font-size: 14px; }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <div class="kick">أداء الأسواق · Market close</div>
+      <h1>من القاهرة لطوكيو</h1>
+    </div>
+    <img src="kanz-white.png" alt="Kanz">
+  </header>
+
+  <div class="grid">
+    <video id="vid" controls playsinline preload="metadata" poster="latest.jpg" src="latest.mp4"></video>
+    <section>
+      <p class="date" id="date">…</p>
+      <a class="btn" id="dl" href="latest.mp4" download>تحميل الفيديو MP4 ↓</a>
+      <div id="status"></div>
+      <table id="rows" aria-label="Today's numbers"></table>
+    </section>
+  </div>
+
+  <h2>الأيام السابقة · Archive</h2>
+  <div id="archive"><p class="empty">…</p></div>
+</main>
+<script>
+const NAMES = { egx30: "EGX30 · مصر", tasi: "تاسي · السعودية", dfmgi: "سوق دبي", fadgi: "فوتسي أبوظبي", nifty: "نيفتي 50 · الهند",
+  hsi: "هانج سنج · هونج كونج", kospi: "كوسبي 200 · كوريا", n225: "نيكاي 225 · اليابان", brent: "برنت", gold: "الذهب" };
+
+fetch("latest.json", { cache: "no-store" }).then(r => r.json()).then(d => {
+  document.getElementById("date").textContent = `${d.weekday} ${d.date_ar} · ${d.date}`;
+  const dl = document.getElementById("dl");
+  dl.setAttribute("download", d.file);
+  if (d.status !== "OK") {
+    const n = document.createElement("p");
+    n.className = "note";
+    n.textContent = d.status === "SINGLE SOURCE" ? "مصدر واحد (Yahoo) · single source, not yet checked against Kanz"
+                  : d.status === "TEST" ? "تجربة · test run, numbers are not a real close" : d.status;
+    document.getElementById("status").append(n);
+  }
+  const t = document.getElementById("rows");
+  for (const r of d.rows) {
+    const tr = t.insertRow();
+    tr.insertCell().textContent = NAMES[r.key] || r.key;
+    const c = tr.insertCell();
+    c.className = "n " + (r.closed ? "off" : r.pct >= 0 ? "up" : "down");
+    c.textContent = r.closed ? "مغلق" : (r.pct > 0 ? "+" : "") + r.pct.toFixed(2) + "%";
+  }
+}).catch(() => { document.getElementById("date").textContent = "No reel published yet."; });
+
+// archive = every public GitHub release of this repo (drafts never appear)
+const repo = location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1];
+fetch(`https://api.github.com/repos/${repo}/releases?per_page=60`).then(r => r.json()).then(list => {
+  const box = document.getElementById("archive");
+  box.innerHTML = "";
+  const items = list.filter(r => !r.draft && !r.prerelease).map(r => [r, r.assets.find(a => a.name.endsWith(".mp4") && !a.name.includes("_sheet"))]).filter(x => x[1]);
+  if (!items.length) { box.innerHTML = '<p class="empty">Nothing yet.</p>'; return; }
+  for (const [r, a] of items) {
+    const el = document.createElement("a");
+    el.href = a.browser_download_url;
+    el.innerHTML = `<b></b><span></span>`;
+    el.querySelector("b").textContent = r.name;
+    el.querySelector("span").textContent = (a.size / 1e6).toFixed(1) + " MB · MP4 ↓";
+    box.append(el);
+  }
+}).catch(() => { document.getElementById("archive").innerHTML = '<p class="empty">Archive unavailable right now.</p>'; });
+</script>
+</body>
+</html>

@@ -9,15 +9,23 @@ on:
         description: "Test run: render now with whatever Yahoo has, no waiting for the close (draft release tagged -test)"
         type: boolean
         default: true
+      site:
+        description: "Also put this run on the website (only matters for test runs; real runs update it automatically)"
+        type: boolean
+        default: false
 concurrency:
   group: egx-close
   cancel-in-progress: false
 permissions:
   contents: write
+  pages: write
+  id-token: write
 jobs:
   reel:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    environment:
+      name: github-pages
     env:
       RADAR_OUT: ${{ github.workspace }}/out
       GH_TOKEN: ${{ github.token }}
@@ -77,15 +85,20 @@ jobs:
         if: steps.fetch.outputs.code == '0'
         run: python projects/_radar/run_edition.py egx render
       - name: Checks and validation note
+        id: fin
         if: steps.fetch.outputs.code == '0'
-        run: python cloud/finish.py "out/${{ steps.guard.outputs.date }}"
-      - name: Publish release (public only when OK, otherwise draft)
+        run: |
+          python cloud/finish.py "out/${{ steps.guard.outputs.date }}"
+          S=$(python -c "import json;print(json.load(open('finish.json'))['status'])")
+          echo "status=$S" >> "$GITHUB_OUTPUT"
+          if [ "$S" = "OK" ] || [ "$S" = "SINGLE SOURCE" ] || { [ "$RADAR_TEST" = "1" ] && [ "${{ inputs.site }}" = "true" ]; }; then echo "site=true" >> "$GITHUB_OUTPUT"; else echo "site=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Publish release (public when OK or SINGLE SOURCE, draft when NEEDS REVIEW or test)
         if: steps.fetch.outputs.code == '0'
         id: rel
         run: |
           D=${{ steps.guard.outputs.date }}
           T=${{ steps.guard.outputs.tag }}
-          DRAFT=$(python -c "import json;print('' if json.load(open('finish.json'))['status']=='OK' else '--draft')")
+          DRAFT=$(python -c "import json;print('' if json.load(open('finish.json'))['status'] in ('OK','SINGLE SOURCE') else '--draft')")
           TITLE="EGX close reel $D"; [ "$RADAR_TEST" = "1" ] && TITLE="$TITLE (test)"
           gh release create "$T" out/$D/* $DRAFT --title "$TITLE" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"
           echo "url=$(gh release view "$T" --json url -q .url)" >> "$GITHUB_OUTPUT"
@@ -96,11 +109,24 @@ jobs:
           name: egx-reel-${{ steps.guard.outputs.date }}
           path: out/${{ steps.guard.outputs.date }}/
           retention-days: 14
+      - name: Build website
+        if: steps.fin.outputs.site == 'true'
+        run: python cloud/build_site.py "out/${{ steps.guard.outputs.date }}" _site
+      - name: Upload website
+        if: steps.fin.outputs.site == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy website
+        if: steps.fin.outputs.site == 'true'
+        id: pages
+        uses: actions/deploy-pages@v4
       - name: Slack
         if: steps.fetch.outputs.code == '0'
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           RELEASE_URL: ${{ steps.rel.outputs.url }}
+          WEBSITE_URL: ${{ steps.pages.outputs.page_url }}
         run: python cloud/slack_notify.py
       - name: Slack on failure
         if: failure() && steps.guard.outputs.skip == 'false'
