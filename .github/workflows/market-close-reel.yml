@@ -179,16 +179,3 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           RELEASE_URL: ${{ steps.rel.outputs.url }}
         run: python cloud/slack_notify.py $ED "out/${{ steps.guard.outputs.date }}"
-      - name: Slack on failure
-        if: failure() && steps.guard.outputs.skip == 'false' && env.RADAR_TEST != '1' && steps.fin.outcome != 'success'
-        env:
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || secrets.CHANNEL || vars.SLACK_CHANNEL_ID }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          MSG=":x: $ED close reel failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          if [ -n "$SLACK_BOT_TOKEN" ] && [ -n "$SLACK_CHANNEL_ID" ]; then
-            curl -sS -H "Authorization: Bearer $SLACK_BOT_TOKEN" --data-urlencode "channel=$SLACK_CHANNEL_ID" --data-urlencode "text=$MSG" https://slack.com/api/chat.postMessage
-          elif [ -n "$SLACK_WEBHOOK_URL" ]; then
-            curl -sS -X POST -H "Content-Type: application/json" --data "{\"text\":\"$MSG\"}" "$SLACK_WEBHOOK_URL"
-          else echo "no Slack secret"; fi

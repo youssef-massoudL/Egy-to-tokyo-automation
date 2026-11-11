@@ -1,4 +1,4 @@
-"""Send the day's reel to Slack.
+"""Send the day's reel to Slack: the MP4 with one line, the markets (edition title) and the date. Nothing else is ever posted.
 
 With SLACK_BOT_TOKEN + SLACK_CHANNEL_ID: uploads the MP4 itself, with the day and the markets as its message.
   (Slack app with bot scopes files:write and chat:write, invited to the channel.)
@@ -34,16 +34,10 @@ fin = json.load(open("finish.json", encoding="utf-8"))
 video = folder / fin["video"]
 site = json.loads((folder / f"{video.stem}_site.json").read_text(encoding="utf-8"))
 
-lines = []
-if fin["status"] == "TEST":
-    lines.append("🧪 تجربة (test run, not a real close)")
-elif fin["status"] == "NEEDS REVIEW":
-    lines.append("⚠️ للمراجعة قبل النشر (needs review)")
-lines.append(f"*{TITLE[name]}* · {site['weekday']} {site['date_ar']}")
-for r in site["rows"]:
-    v = "مغلق" if r["closed"] else f"{'🟣' if r['pct'] >= 0 else '🔴'} {r['pct']:+.2f}%"
-    lines.append(f"{NAMES.get(r['key'], r['key'])}: {v}")
-text = "\n".join(lines)
+if fin["status"] == "NEEDS REVIEW":   # only finished reels go to Slack; a held one waits for a person (draft release)
+    print("needs review, not sent to Slack")
+    raise SystemExit(0)
+text = f"*{TITLE[name]}* · {site['weekday']} {site['date_ar']}"   # just the markets and the date: the video says the rest
 
 
 def call(method, data=None, raw=None, url=None, ctype=None):
