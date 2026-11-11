@@ -76,7 +76,9 @@ jobs:
         id: rel
         run: |
           D=${{ steps.guard.outputs.date }}
-          gh release create "egx-$D" out/$D/* --title "EGX close reel $D" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"
+          # repo is public: a run that needs review stays a draft (collaborators only) until someone publishes it
+          DRAFT=$(python -c "import json;print('' if json.load(open('finish.json'))['status']=='OK' else '--draft')")
+          gh release create "egx-$D" out/$D/* $DRAFT --title "EGX close reel $D" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"
           echo "url=$(gh release view egx-$D --json url -q .url)" >> "$GITHUB_OUTPUT"
       - name: Slack
         if: steps.fetch.outputs.code == '0'
