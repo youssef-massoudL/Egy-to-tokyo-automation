@@ -24,6 +24,8 @@ name, folder = sys.argv[1], Path(sys.argv[2])
 token = os.environ.get("SLACK_BOT_TOKEN", "").strip()
 channel = os.environ.get("SLACK_CHANNEL_ID", "").strip()
 hook = os.environ.get("SLACK_WEBHOOK_URL", "").strip()
+if token and not channel and not hook:   # half set up: say exactly what is missing instead of skipping quietly
+    raise SystemExit("SLACK_BOT_TOKEN is set but SLACK_CHANNEL_ID is empty: add the channel ID (C...) as a repo secret or variable")
 if not ((token and channel) or hook):
     print("no Slack secrets, skipping Slack")
     raise SystemExit(0)
