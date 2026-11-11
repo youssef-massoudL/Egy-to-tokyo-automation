@@ -161,7 +161,7 @@ jobs:
         if: steps.fetch.outputs.code == '0' && (env.RADAR_TEST != '1' || env.SLACK_TEST == 'true')
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || vars.SLACK_CHANNEL_ID }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || secrets.CHANNEL || vars.SLACK_CHANNEL_ID }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           RELEASE_URL: ${{ steps.rel.outputs.url }}
         run: python cloud/slack_notify.py $ED "out/${{ steps.guard.outputs.date }}"
@@ -169,7 +169,7 @@ jobs:
         if: failure() && steps.guard.outputs.skip == 'false' && env.RADAR_TEST != '1'
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || vars.SLACK_CHANNEL_ID }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || secrets.CHANNEL || vars.SLACK_CHANNEL_ID }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           MSG=":x: $ED close reel failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
