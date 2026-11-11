@@ -28,6 +28,10 @@ on:
         description: "Also send this run to Slack (only matters for test runs; real runs always send)"
         type: boolean
         default: false
+      redo:
+        description: "Real run only: make today's reel again even if it was already made (replaces it, sends to Slack)"
+        type: boolean
+        default: false
 concurrency:
   # real runs of one edition queue one after another; every test run gets its own lane, so a stuck test never blocks anything
   group: ${{ (github.event_name == 'push' || inputs.test) && format('test-{0}', github.run_id) || format('close-{0}', github.event.schedule == '35 20,21 * * 1-5' && 'us' || inputs.edition || 'egx') }}
@@ -76,7 +80,7 @@ jobs:
           echo "date=$D" >> "$GITHUB_OUTPUT"
           if [ "$RADAR_TEST" = "1" ]; then
             echo "tag=$ED-$D-test-$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
-          elif gh release view "$ED-$D" >/dev/null 2>&1; then
+          elif [ "${{ inputs.redo }}" != "true" ] && gh release view "$ED-$D" >/dev/null 2>&1; then
             echo "already made today"; echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "tag=$ED-$D" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -136,7 +140,8 @@ jobs:
           DRAFT=$(python -c "import json;print('' if json.load(open('finish.json'))['status'] in ('OK','SINGLE SOURCE') else '--draft')")
           if [ "$ED" = "us" ]; then TITLE="Europe + US close reel $D"; else TITLE="EGX close reel $D"; fi
           [ "$RADAR_TEST" = "1" ] && TITLE="$TITLE (test)"
-          gh release create "$T" out/$D/* $DRAFT --title "$TITLE" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"
+          if gh release view "$T" >/dev/null 2>&1; then gh release upload "$T" out/$D/* --clobber   # a redo replaces the day's files
+          else gh release create "$T" out/$D/* $DRAFT --title "$TITLE" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"; fi
           echo "url=$(gh release view "$T" --json url -q .url)" >> "$GITHUB_OUTPUT"
       - name: Upload as run artifact too
         if: steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0'
