@@ -25,7 +25,8 @@ on:
         type: boolean
         default: false
 concurrency:
-  group: close-${{ github.event.schedule == '35 20,21 * * 1-5' && 'us' || inputs.edition || github.event_name == 'push' && 'push' || 'egx' }}
+  # real runs of one edition queue one after another; every test run gets its own lane, so a stuck test never blocks anything
+  group: ${{ (github.event_name == 'push' || inputs.test) && format('test-{0}', github.run_id) || format('close-{0}', github.event.schedule == '35 20,21 * * 1-5' && 'us' || inputs.edition || 'egx') }}
   cancel-in-progress: false
 permissions:
   contents: write
