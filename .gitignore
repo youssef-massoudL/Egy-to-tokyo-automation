@@ -4,3 +4,4 @@ node_modules/
 __pycache__/
 finish.json
 .slack_token
+.slack_token*

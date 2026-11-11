@@ -63,6 +63,8 @@ jobs:
             echo "ED=$ED" >> "$GITHUB_ENV"
             SITE=$(python -c "import json;print(str(json.load(open('.github/test-run.json')).get('site', True)).lower())")
             echo "SITE_TEST=$SITE" >> "$GITHUB_ENV"
+            SL=$(python -c "import json;print(str(json.load(open('.github/test-run.json')).get('slack', False)).lower())")
+            echo "SLACK_TEST=$SL" >> "$GITHUB_ENV"
           fi
           if [ "$ED" = "us" ]; then D=$(TZ=America/New_York date +%F); else D=$(TZ=Africa/Cairo date +%F); fi
           echo "Edition $ED, date $D"
@@ -155,7 +157,8 @@ jobs:
         id: pages
         uses: actions/deploy-pages@v4
       - name: Slack
-        if: steps.fetch.outputs.code == '0'
+        # real runs always post; test runs post only when asked ("slack": true in .github/test-run.json)
+        if: steps.fetch.outputs.code == '0' && (env.RADAR_TEST != '1' || env.SLACK_TEST == 'true')
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
@@ -163,7 +166,7 @@ jobs:
           RELEASE_URL: ${{ steps.rel.outputs.url }}
         run: python cloud/slack_notify.py $ED "out/${{ steps.guard.outputs.date }}"
       - name: Slack on failure
-        if: failure() && steps.guard.outputs.skip == 'false'
+        if: failure() && steps.guard.outputs.skip == 'false' && env.RADAR_TEST != '1'
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}

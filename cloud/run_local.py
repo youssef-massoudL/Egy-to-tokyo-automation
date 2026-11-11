@@ -19,9 +19,12 @@ env = dict(os.environ, RADAR_OUT=str(ROOT / "out"), RADAR_PARALLEL="1", RADAR_TE
 def load_slack():   # read at send time, so the file can be added while the run waits for the close
     tok = ROOT / ".slack_token"
     if tok.exists():
-        lines = [x.strip() for x in tok.read_text(encoding="utf-8").splitlines() if x.strip()]
-        if len(lines) >= 2:
-            env["SLACK_BOT_TOKEN"], env["SLACK_CHANNEL_ID"] = lines[0], lines[1]
+        import re
+        txt = tok.read_text(encoding="utf-8-sig")
+        t = re.search(r"xoxb-[A-Za-z0-9-]+", txt)                 # labels like "bot token:" around the values are fine
+        c = re.search(r"[CGD][A-Z0-9]{8,}", txt.replace(t.group(0), "") if t else txt)
+        if t and c:
+            env["SLACK_BOT_TOKEN"], env["SLACK_CHANNEL_ID"] = t.group(0), c.group(0)
     if "SLACK_BOT_TOKEN" not in env:
         print("note: no .slack_token found, the reel is made but not sent to Slack")
 
