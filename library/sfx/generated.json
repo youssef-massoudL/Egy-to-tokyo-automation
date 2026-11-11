@@ -1,0 +1,79 @@
+[
+ {
+  "file": "register/cash-01.wav",
+  "category": "register",
+  "source_file": "register_cash-01.mp3",
+  "source_page": "https://elevenlabs.io/sound-effects",
+  "license": "ElevenLabs sound effects, generated on a paid plan (commercial use)",
+  "author": "ElevenLabs (generated)",
+  "prompt": "Vintage mechanical cash register: drawer slides open with a single bright bell ding, close-up, no music",
+  "seconds": 1.5,
+  "created": "2026-10-10"
+ },
+ {
+  "file": "riser/swell-01.wav",
+  "category": "riser",
+  "source_file": "riser_swell-01.mp3",
+  "source_page": "https://elevenlabs.io/sound-effects",
+  "license": "ElevenLabs sound effects, generated on a paid plan (commercial use)",
+  "author": "ElevenLabs (generated)",
+  "prompt": "Short cinematic air riser: a soft noisy swell that builds for one second and ends in a gentle low thud, no music, no melody, no tones",
+  "seconds": 1.6,
+  "created": "2026-10-13"
+ },
+ {
+  "file": "riser/swell-02.wav",
+  "category": "riser",
+  "source_file": "riser_swell-02.mp3",
+  "source_page": "https://elevenlabs.io/sound-effects",
+  "license": "ElevenLabs sound effects, generated on a paid plan (commercial use)",
+  "author": "ElevenLabs (generated)",
+  "prompt": "Short cinematic air riser: a soft noisy swell that builds for one second and ends in a gentle low thud, no music, no melody, no tones",
+  "seconds": 1.6,
+  "created": "2026-10-13"
+ },
+ {
+  "file": "riser/swell-03.wav",
+  "category": "riser",
+  "source_file": "riser_swell-03.mp3",
+  "source_page": "https://elevenlabs.io/sound-effects",
+  "license": "ElevenLabs sound effects, generated on a paid plan (commercial use)",
+  "author": "ElevenLabs (generated)",
+  "prompt": "Short cinematic air riser: a soft noisy swell that builds for one second and ends in a gentle low thud, no music, no melody, no tones",
+  "seconds": 1.6,
+  "created": "2026-10-13"
+ },
+ {
+  "file": "shutter/camera-01.wav",
+  "category": "shutter",
+  "source_file": "shutter_camera-01.mp3",
+  "source_page": "https://elevenlabs.io/sound-effects",
+  "license": "ElevenLabs sound effects, generated on a paid plan (commercial use)",
+  "author": "ElevenLabs (generated)",
+  "prompt": "Single vintage film camera shutter click with a short film-advance lever, close-up, dry, no music",
+  "seconds": 0.8,
+  "created": "2026-10-13"
+ },
+ {
+  "file": "shutter/camera-02.wav",
+  "category": "shutter",
+  "source_file": "shutter_camera-02.mp3",
+  "source_page": "https://elevenlabs.io/sound-effects",
+  "license": "ElevenLabs sound effects, generated on a paid plan (commercial use)",
+  "author": "ElevenLabs (generated)",
+  "prompt": "Single vintage film camera shutter click with a short film-advance lever, close-up, dry, no music",
+  "seconds": 0.8,
+  "created": "2026-10-13"
+ },
+ {
+  "file": "shutter/camera-03.wav",
+  "category": "shutter",
+  "source_file": "shutter_camera-03.mp3",
+  "source_page": "https://elevenlabs.io/sound-effects",
+  "license": "ElevenLabs sound effects, generated on a paid plan (commercial use)",
+  "author": "ElevenLabs (generated)",
+  "prompt": "Single vintage film camera shutter click with a short film-advance lever, close-up, dry, no music",
+  "seconds": 0.8,
+  "created": "2026-10-13"
+ }
+]
