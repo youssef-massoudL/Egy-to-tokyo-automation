@@ -16,10 +16,15 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.6 "IBM Plex Sans Arabic", system-ui, sans-serif; }
   main { max-width: 980px; margin: 0 auto; padding: 32px 16px 64px; }
-  header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
-  header img { height: 28px; }
-  h1 { font: 700 clamp(28px, 6vw, 44px)/1.15 "Thmanyah Display", "IBM Plex Sans Arabic", sans-serif; margin: 0 0 4px; }
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
+  header.top img { height: 28px; }
+  .tabs { display: flex; gap: 8px; margin: 20px 0 28px; flex-wrap: wrap; }
+  .tabs button { font: inherit; font-weight: 500; color: var(--muted); background: transparent; border: 1px solid var(--line);
+                 border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+  .tabs button[aria-selected="true"] { color: #11081a; background: var(--lav); border-color: var(--lav); }
+  .tabs button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   .kick { color: var(--lav); font-weight: 500; font-size: 14px; }
+  h1 { font: 700 clamp(28px, 6vw, 44px)/1.15 "Thmanyah Display", "IBM Plex Sans Arabic", sans-serif; margin: 0 0 4px; }
   .grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 32px; align-items: start; }
   @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
   video { width: 100%; aspect-ratio: 9 / 16; background: var(--surface); border-radius: 14px; display: block; }
@@ -34,76 +39,100 @@
   td.n { text-align: left; direction: ltr; font-weight: 500; }
   .up { color: var(--lav); } .down { color: var(--loss); } .off { color: var(--closed); }
   h2 { font-size: 18px; font-weight: 500; margin: 48px 0 12px; }
-  #archive a { color: var(--text); text-decoration: none; display: flex; justify-content: space-between; padding: 10px 4px; border-bottom: 1px solid var(--line); }
-  #archive a:hover { color: var(--lav); }
-  #archive span { color: var(--muted); font-size: 14px; }
+  .archive a { color: var(--text); text-decoration: none; display: flex; justify-content: space-between; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+  .archive a:hover { color: var(--lav); }
+  .archive span { color: var(--muted); font-size: 14px; white-space: nowrap; }
   .empty { color: var(--muted); }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
-  <header>
-    <div>
-      <div class="kick">أداء الأسواق · Market close</div>
-      <h1>من القاهرة لطوكيو</h1>
-    </div>
+  <header class="top">
+    <div class="kick">Kanz · Market close reels</div>
     <img src="kanz-white.png" alt="Kanz">
   </header>
-
-  <div class="grid">
-    <video id="vid" controls playsinline preload="metadata" poster="latest.jpg" src="latest.mp4"></video>
-    <section>
-      <p class="date" id="date">…</p>
-      <a class="btn" id="dl" href="latest.mp4" download>تحميل الفيديو MP4 ↓</a>
-      <div id="status"></div>
-      <table id="rows" aria-label="Today's numbers"></table>
-    </section>
+  <div class="tabs" role="tablist">
+    <button role="tab" id="t-egx" aria-controls="egx" aria-selected="true">من القاهرة لطوكيو</button>
+    <button role="tab" id="t-us" aria-controls="us" aria-selected="false">من أوروبا لنيويورك</button>
   </div>
 
-  <h2>الأيام السابقة · Archive</h2>
-  <div id="archive"><p class="empty">…</p></div>
+  <section id="egx" role="tabpanel" aria-labelledby="t-egx" data-kick="أداء الأسواق" data-title="من القاهرة لطوكيو"></section>
+  <section id="us" role="tabpanel" aria-labelledby="t-us" data-kick="أسواق الغرب" data-title="من أوروبا لنيويورك" hidden></section>
 </main>
 <script>
-const NAMES = { egx30: "EGX30 · مصر", tasi: "تاسي · السعودية", dfmgi: "سوق دبي", fadgi: "فوتسي أبوظبي", nifty: "نيفتي 50 · الهند",
-  hsi: "هانج سنج · هونج كونج", kospi: "كوسبي 200 · كوريا", n225: "نيكاي 225 · اليابان", brent: "برنت", gold: "الذهب" };
+const NAMES = {
+  egx30: "EGX30 · مصر", tasi: "تاسي · السعودية", dfmgi: "سوق دبي", fadgi: "فوتسي أبوظبي", nifty: "نيفتي 50 · الهند",
+  hsi: "هانج سنج · هونج كونج", kospi: "كوسبي 200 · كوريا", n225: "نيكاي 225 · اليابان",
+  dax: "داكس · ألمانيا", cac: "كاك 40 · فرنسا", ftse: "فوتسي 100 · بريطانيا", dow: "داو جونز", spx: "إس آند بي 500", ndq: "ناسداك",
+  brent: "برنت", gold: "الذهب" };
+const NOTES = { "SINGLE SOURCE": "مصدر واحد (Yahoo) · single source, numbers not cross-checked",
+                "TEST": "تجربة · test run, numbers are not a real close" };
 
-fetch("latest.json", { cache: "no-store" }).then(r => r.json()).then(d => {
-  document.getElementById("date").textContent = `${d.weekday} ${d.date_ar} · ${d.date}`;
-  const dl = document.getElementById("dl");
-  dl.setAttribute("download", d.file);
-  if (d.status !== "OK") {
-    const n = document.createElement("p");
-    n.className = "note";
-    n.textContent = d.status === "SINGLE SOURCE" ? "مصدر واحد (Yahoo) · single source, not yet checked against Kanz"
-                  : d.status === "TEST" ? "تجربة · test run, numbers are not a real close" : d.status;
-    document.getElementById("status").append(n);
-  }
-  const t = document.getElementById("rows");
-  for (const r of d.rows) {
-    const tr = t.insertRow();
-    tr.insertCell().textContent = NAMES[r.key] || r.key;
-    const c = tr.insertCell();
-    c.className = "n " + (r.closed ? "off" : r.pct >= 0 ? "up" : "down");
-    c.textContent = r.closed ? "مغلق" : (r.pct > 0 ? "+" : "") + r.pct.toFixed(2) + "%";
-  }
-}).catch(() => { document.getElementById("date").textContent = "No reel published yet."; });
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
-// archive = every public GitHub release of this repo (drafts never appear)
+function build(sec) {
+  const ed = sec.id;
+  const head = el("div");
+  head.append(el("div", "kick", sec.dataset.kick), el("h1", null, sec.dataset.title));
+  const grid = el("div", "grid");
+  const video = el("video");
+  Object.assign(video, { controls: true, playsInline: true, preload: "metadata", poster: `${ed}/latest.jpg` });
+  const side = el("section");
+  const date = el("p", "date", "…");
+  const dl = el("a", "btn", "تحميل الفيديو MP4 ↓");
+  dl.href = `${ed}/latest.mp4`;
+  const status = el("div");
+  const table = el("table");
+  side.append(date, dl, status, table);
+  grid.append(video, side);
+  const arch = el("div", "archive");
+  sec.append(head, el("div", null), grid, el("h2", null, "الأيام السابقة · Archive"), arch);
+  head.style.marginBottom = "24px";
+
+  fetch(`${ed}/latest.json`, { cache: "no-store" }).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+    video.src = `${ed}/latest.mp4`;
+    date.textContent = `${d.weekday} ${d.date_ar} · ${d.date}`;
+    dl.setAttribute("download", d.file);
+    if (d.status !== "OK") status.append(el("p", "note", NOTES[d.status] || d.status));
+    for (const r of d.rows) {
+      const tr = table.insertRow();
+      tr.insertCell().textContent = NAMES[r.key] || r.key;
+      const c = tr.insertCell();
+      c.className = "n " + (r.closed ? "off" : r.pct >= 0 ? "up" : "down");
+      c.textContent = r.closed ? "مغلق" : (r.pct > 0 ? "+" : "") + r.pct.toFixed(2) + "%";
+    }
+  }).catch(() => { date.textContent = "لا يوجد فيديو بعد · No reel published yet."; dl.hidden = true; video.hidden = true; });
+
+  releases.then(list => {
+    const items = list.filter(r => !r.draft && r.tag_name.startsWith(ed + "-") && !r.tag_name.includes("-test"))
+      .map(r => [r, r.assets.find(a => a.name.endsWith(".mp4"))]).filter(x => x[1]);
+    if (!items.length) { arch.append(el("p", "empty", "Nothing yet.")); return; }
+    for (const [r, a] of items) {
+      const link = el("a");
+      link.href = a.browser_download_url;
+      link.append(el("b", null, r.name), el("span", null, (a.size / 1e6).toFixed(1) + " MB · MP4 ↓"));
+      arch.append(link);
+    }
+  }).catch(() => arch.append(el("p", "empty", "Archive unavailable right now.")));
+}
+
+// archive = public GitHub releases of this repo (drafts never appear)
 const repo = location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1];
-fetch(`https://api.github.com/repos/${repo}/releases?per_page=60`).then(r => r.json()).then(list => {
-  const box = document.getElementById("archive");
-  box.innerHTML = "";
-  const items = list.filter(r => !r.draft && !r.prerelease).map(r => [r, r.assets.find(a => a.name.endsWith(".mp4") && !a.name.includes("_sheet"))]).filter(x => x[1]);
-  if (!items.length) { box.innerHTML = '<p class="empty">Nothing yet.</p>'; return; }
-  for (const [r, a] of items) {
-    const el = document.createElement("a");
-    el.href = a.browser_download_url;
-    el.innerHTML = `<b></b><span></span>`;
-    el.querySelector("b").textContent = r.name;
-    el.querySelector("span").textContent = (a.size / 1e6).toFixed(1) + " MB · MP4 ↓";
-    box.append(el);
+const releases = fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`).then(r => r.json());
+document.querySelectorAll("section[role=tabpanel]").forEach(build);
+
+const tabs = [...document.querySelectorAll("[role=tab]")];
+function show(id) {
+  for (const t of tabs) {
+    const on = t.getAttribute("aria-controls") === id;
+    t.setAttribute("aria-selected", on);
+    document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
   }
-}).catch(() => { document.getElementById("archive").innerHTML = '<p class="empty">Archive unavailable right now.</p>'; });
+  try { history.replaceState(null, "", "#" + id); } catch (e) {}
+}
+tabs.forEach(t => t.addEventListener("click", () => show(t.getAttribute("aria-controls"))));
+if (location.hash === "#us") { show("us"); requestAnimationFrame(() => window.scrollTo(0, 0)); }
 </script>
 </body>
 </html>

@@ -1,10 +1,17 @@
-name: EGX close reel
+name: Market close reel
 on:
   schedule:
-    # EGX trades Sun-Thu. Cairo is UTC+2 in winter and UTC+3 in summer, so two slots; the release-tag guard stops the duplicate.
+    # EGX (Cairo -> Tokyo): Sun-Thu. Cairo is UTC+2 in winter, UTC+3 in summer: two slots, the release-tag guard drops the duplicate.
     - cron: "15 11,12 * * 0-4"
+    # Europe + US: Mon-Fri. New York is UTC-5 in winter, UTC-4 in summer: 15:35 / 16:35 New York in winter, 16:35 / 17:35 in summer.
+    - cron: "35 20,21 * * 1-5"
   workflow_dispatch:
     inputs:
+      edition:
+        description: "Which reel"
+        type: choice
+        options: [egx, us]
+        default: egx
       test:
         description: "Test run: render now with whatever Yahoo has, no waiting for the close (draft release tagged -test)"
         type: boolean
@@ -14,7 +21,7 @@ on:
         type: boolean
         default: false
 concurrency:
-  group: egx-close
+  group: close-${{ github.event.schedule == '35 20,21 * * 1-5' && 'us' || inputs.edition || 'egx' }}
   cancel-in-progress: false
 permissions:
   contents: write
@@ -23,10 +30,11 @@ permissions:
 jobs:
   reel:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 100
     environment:
       name: github-pages
     env:
+      ED: ${{ github.event.schedule == '35 20,21 * * 1-5' && 'us' || github.event.schedule && 'egx' || inputs.edition }}
       RADAR_OUT: ${{ github.workspace }}/out
       GH_TOKEN: ${{ github.token }}
       RADAR_TEST: ${{ inputs.test && '1' || '0' }}
@@ -40,17 +48,18 @@ jobs:
         with:
           node-version: "20"
           cache: npm
-      - name: Date (Cairo) and already-made guard
+      - name: Date and already-made guard
         id: guard
         run: |
-          D=$(TZ=Africa/Cairo date +%F)
+          if [ "$ED" = "us" ]; then D=$(TZ=America/New_York date +%F); else D=$(TZ=Africa/Cairo date +%F); fi
+          echo "Edition $ED, date $D"
           echo "date=$D" >> "$GITHUB_OUTPUT"
           if [ "$RADAR_TEST" = "1" ]; then
-            echo "tag=egx-$D-test-$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
-          elif gh release view "egx-$D" >/dev/null 2>&1; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "tag=$ED-$D-test-$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "$ED-$D" >/dev/null 2>&1; then
+            echo "already made today"; echo "skip=true" >> "$GITHUB_OUTPUT"
           else
-            echo "tag=egx-$D" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "tag=$ED-$D" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Install
         if: steps.guard.outputs.skip == 'false'
@@ -65,7 +74,7 @@ jobs:
         run: |
           if [ "$RADAR_TEST" = "1" ]; then echo "code=0" >> "$GITHUB_OUTPUT"; exit 0; fi
           set +e
-          python projects/_radar/run_edition.py egx check
+          python projects/_radar/run_edition.py $ED check
           echo "code=$?" >> "$GITHUB_OUTPUT"
           exit 0
       - name: Fetch (waits for the close unless test)
@@ -73,22 +82,22 @@ jobs:
         if: steps.guard.outputs.skip == 'false' && steps.check.outputs.code == '0'
         run: |
           set +e
-          if [ "$RADAR_TEST" = "1" ]; then python projects/_radar/run_edition.py egx fetch; else python projects/_radar/run_edition.py egx fetch --wait; fi
+          if [ "$RADAR_TEST" = "1" ]; then python projects/_radar/run_edition.py $ED fetch; else python projects/_radar/run_edition.py $ED fetch --wait; fi
           echo "code=$?" >> "$GITHUB_OUTPUT"
           exit 0
-      - name: Cross-check (Kanz if the secret is set, else Yahoo only)
+      - name: Cross-check (Kanz for EGX if the secret is set, else Yahoo only)
         if: steps.fetch.outputs.code == '0'
         env:
           KANZ_DB_URL: ${{ secrets.KANZ_DB_URL }}
-        run: python cloud/kanz_validate.py
+        run: python cloud/validate.py $ED
       - name: Render
         if: steps.fetch.outputs.code == '0'
-        run: python projects/_radar/run_edition.py egx render
+        run: python projects/_radar/run_edition.py $ED render
       - name: Checks and validation note
         id: fin
         if: steps.fetch.outputs.code == '0'
         run: |
-          python cloud/finish.py "out/${{ steps.guard.outputs.date }}"
+          python cloud/finish.py $ED "out/${{ steps.guard.outputs.date }}"
           S=$(python -c "import json;print(json.load(open('finish.json'))['status'])")
           echo "status=$S" >> "$GITHUB_OUTPUT"
           if [ "$S" = "OK" ] || [ "$S" = "SINGLE SOURCE" ] || { [ "$RADAR_TEST" = "1" ] && [ "${{ inputs.site }}" = "true" ]; }; then echo "site=true" >> "$GITHUB_OUTPUT"; else echo "site=false" >> "$GITHUB_OUTPUT"; fi
@@ -99,19 +108,24 @@ jobs:
           D=${{ steps.guard.outputs.date }}
           T=${{ steps.guard.outputs.tag }}
           DRAFT=$(python -c "import json;print('' if json.load(open('finish.json'))['status'] in ('OK','SINGLE SOURCE') else '--draft')")
-          TITLE="EGX close reel $D"; [ "$RADAR_TEST" = "1" ] && TITLE="$TITLE (test)"
+          if [ "$ED" = "us" ]; then TITLE="Europe + US close reel $D"; else TITLE="EGX close reel $D"; fi
+          [ "$RADAR_TEST" = "1" ] && TITLE="$TITLE (test)"
           gh release create "$T" out/$D/* $DRAFT --title "$TITLE" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"
           echo "url=$(gh release view "$T" --json url -q .url)" >> "$GITHUB_OUTPUT"
       - name: Upload as run artifact too
         if: steps.fetch.outputs.code == '0'
         uses: actions/upload-artifact@v4
         with:
-          name: egx-reel-${{ steps.guard.outputs.date }}
+          name: ${{ env.ED }}-reel-${{ steps.guard.outputs.date }}
           path: out/${{ steps.guard.outputs.date }}/
           retention-days: 14
-      - name: Build website
+      - name: Configure website
         if: steps.fin.outputs.site == 'true'
-        run: python cloud/build_site.py "out/${{ steps.guard.outputs.date }}" _site
+        id: cfg
+        uses: actions/configure-pages@v5
+      - name: Build website (this edition + the other one carried over from the live site)
+        if: steps.fin.outputs.site == 'true'
+        run: python cloud/build_site.py $ED "out/${{ steps.guard.outputs.date }}" _site "${{ steps.cfg.outputs.base_url }}"
       - name: Upload website
         if: steps.fin.outputs.site == 'true'
         uses: actions/upload-pages-artifact@v3
@@ -134,4 +148,4 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           if [ -z "$SLACK_WEBHOOK_URL" ]; then echo "no Slack secret"; exit 0; fi
-          curl -sS -X POST -H "Content-Type: application/json" --data "{\"text\":\":x: EGX close reel failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" "$SLACK_WEBHOOK_URL"
+          curl -sS -X POST -H "Content-Type: application/json" --data "{\"text\":\":x: $ED close reel failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" "$SLACK_WEBHOOK_URL"
