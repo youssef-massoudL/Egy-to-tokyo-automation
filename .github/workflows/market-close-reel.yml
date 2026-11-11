@@ -100,30 +100,30 @@ jobs:
           exit 0
       - name: Fetch (waits for the close unless test)
         id: fetch
-        if: steps.guard.outputs.skip == 'false' && steps.check.outputs.code == '0'
+        if: steps.guard.outputs.skip == 'false' && steps.check.outcome == 'success' && steps.check.outputs.code == '0'
         run: |
           set +e
           if [ "$RADAR_TEST" = "1" ]; then python projects/_radar/run_edition.py $ED fetch; else python projects/_radar/run_edition.py $ED fetch --wait; fi
           echo "code=$?" >> "$GITHUB_OUTPUT"
           exit 0
       - name: Cross-check (Kanz for EGX if the secret is set, else Yahoo only)
-        if: steps.fetch.outputs.code == '0'
+        if: steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0'
         env:
           KANZ_DB_URL: ${{ secrets.KANZ_DB_URL }}
         run: python cloud/validate.py $ED
       - name: Render
-        if: steps.fetch.outputs.code == '0'
+        if: steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0'
         run: python projects/_radar/run_edition.py $ED render
       - name: Checks and validation note
         id: fin
-        if: steps.fetch.outputs.code == '0'
+        if: steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0'
         run: |
           python cloud/finish.py $ED "out/${{ steps.guard.outputs.date }}"
           S=$(python -c "import json;print(json.load(open('finish.json'))['status'])")
           echo "status=$S" >> "$GITHUB_OUTPUT"
           if [ "$S" = "OK" ] || [ "$S" = "SINGLE SOURCE" ] || { [ "$RADAR_TEST" = "1" ] && [ "$SITE_TEST" = "true" ]; }; then echo "site=true" >> "$GITHUB_OUTPUT"; else echo "site=false" >> "$GITHUB_OUTPUT"; fi
       - name: Publish release (public when OK or SINGLE SOURCE, draft when NEEDS REVIEW or test)
-        if: steps.fetch.outputs.code == '0'
+        if: steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0'
         id: rel
         run: |
           D=${{ steps.guard.outputs.date }}
@@ -134,7 +134,7 @@ jobs:
           gh release create "$T" out/$D/* $DRAFT --title "$TITLE" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"
           echo "url=$(gh release view "$T" --json url -q .url)" >> "$GITHUB_OUTPUT"
       - name: Upload as run artifact too
-        if: steps.fetch.outputs.code == '0'
+        if: steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ED }}-reel-${{ steps.guard.outputs.date }}
@@ -158,7 +158,7 @@ jobs:
         uses: actions/deploy-pages@v4
       - name: Slack
         # real runs always post; test runs post only when asked ("slack": true in .github/test-run.json)
-        if: steps.fetch.outputs.code == '0' && (env.RADAR_TEST != '1' || env.SLACK_TEST == 'true')
+        if: steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0' && (env.RADAR_TEST != '1' || env.SLACK_TEST == 'true')
         env:
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || secrets.CHANNEL || vars.SLACK_CHANNEL_ID }}
