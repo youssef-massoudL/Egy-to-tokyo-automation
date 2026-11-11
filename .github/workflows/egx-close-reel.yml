@@ -71,7 +71,7 @@ jobs:
       - name: Checks and validation note
         if: steps.fetch.outputs.code == '0'
         run: python cloud/finish.py "out/${{ steps.guard.outputs.date }}"
-      - name: Publish private release
+      - name: Publish release (draft if NEEDS REVIEW)
         if: steps.fetch.outputs.code == '0'
         id: rel
         run: |
