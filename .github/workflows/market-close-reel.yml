@@ -24,6 +24,10 @@ on:
         description: "Also put this run on the website (only matters for test runs; real runs update it automatically)"
         type: boolean
         default: false
+      slack:
+        description: "Also send this run to Slack (only matters for test runs; real runs always send)"
+        type: boolean
+        default: false
 concurrency:
   # real runs of one edition queue one after another; every test run gets its own lane, so a stuck test never blocks anything
   group: ${{ (github.event_name == 'push' || inputs.test) && format('test-{0}', github.run_id) || format('close-{0}', github.event.schedule == '35 20,21 * * 1-5' && 'us' || inputs.edition || 'egx') }}
@@ -45,6 +49,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       RADAR_TEST: ${{ (inputs.test || github.event_name == 'push') && '1' || '0' }}
       SITE_TEST: ${{ (inputs.site || github.event_name == 'push') && 'true' || 'false' }}
+      SLACK_TEST: ${{ inputs.slack && 'true' || 'false' }}   # push test runs set it from .github/test-run.json instead
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
