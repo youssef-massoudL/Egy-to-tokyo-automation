@@ -93,7 +93,8 @@ def with_kanz(notes):
 
 
 def single_source(notes):
-    if not TEST:
+    late = dt.datetime.now(TZ) >= at(ED["give_up"])   # started after the give-up time: the close is long final, use it as is
+    if not TEST and not late:
         last, since = None, None
         mins = ED["stable_secs"] // 60
         while True:
@@ -108,7 +109,8 @@ def single_source(notes):
                 break
             time.sleep(60)
             run_fetch()
-        notes.append(f"single source: Yahoo only; {HOME} unchanged {mins} min before use" + ("; not confirmed against Kanz; gold is futures, not spot" if NAME == "egx" else ""))
+    if not TEST:
+        notes.append(f"single source: Yahoo only; " + (f"read {dt.datetime.now(TZ):%H:%M} local, well after the close" if late else f"{HOME} unchanged {ED['stable_secs'] // 60} min before use") + ("; not confirmed against Kanz; gold is futures, not spot" if NAME == "egx" else ""))
     return ("TEST" if TEST else "SINGLE SOURCE"), []
 
 
