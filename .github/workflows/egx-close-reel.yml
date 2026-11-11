@@ -3,7 +3,12 @@ on:
   schedule:
     # EGX trades Sun-Thu. Cairo is UTC+2 in winter and UTC+3 in summer, so two slots; the release-tag guard stops the duplicate.
     - cron: "15 11,12 * * 0-4"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      test:
+        description: "Test run: render now with whatever Yahoo has, no waiting for the close (draft release tagged -test)"
+        type: boolean
+        default: true
 concurrency:
   group: egx-close
   cancel-in-progress: false
@@ -16,6 +21,7 @@ jobs:
     env:
       RADAR_OUT: ${{ github.workspace }}/out
       GH_TOKEN: ${{ github.token }}
+      RADAR_TEST: ${{ inputs.test && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,7 +37,13 @@ jobs:
         run: |
           D=$(TZ=Africa/Cairo date +%F)
           echo "date=$D" >> "$GITHUB_OUTPUT"
-          if gh release view "egx-$D" >/dev/null 2>&1; then echo "skip=true" >> "$GITHUB_OUTPUT"; else echo "skip=false" >> "$GITHUB_OUTPUT"; fi
+          if [ "$RADAR_TEST" = "1" ]; then
+            echo "tag=egx-$D-test-$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
+          elif gh release view "egx-$D" >/dev/null 2>&1; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=egx-$D" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Install
         if: steps.guard.outputs.skip == 'false'
         run: |
@@ -43,43 +55,47 @@ jobs:
         id: check
         if: steps.guard.outputs.skip == 'false'
         run: |
+          if [ "$RADAR_TEST" = "1" ]; then echo "code=0" >> "$GITHUB_OUTPUT"; exit 0; fi
           set +e
           python projects/_radar/run_edition.py egx check
           echo "code=$?" >> "$GITHUB_OUTPUT"
           exit 0
-      - name: Wait for the close and fetch
+      - name: Fetch (waits for the close unless test)
         id: fetch
         if: steps.guard.outputs.skip == 'false' && steps.check.outputs.code == '0'
         run: |
           set +e
-          python projects/_radar/run_edition.py egx fetch --wait
+          if [ "$RADAR_TEST" = "1" ]; then python projects/_radar/run_edition.py egx fetch; else python projects/_radar/run_edition.py egx fetch --wait; fi
           echo "code=$?" >> "$GITHUB_OUTPUT"
           exit 0
-      - name: Cross-check against Kanz and use spot gold
+      - name: Cross-check (Kanz if the secret is set, else Yahoo only)
         if: steps.fetch.outputs.code == '0'
         env:
           KANZ_DB_URL: ${{ secrets.KANZ_DB_URL }}
-        run: |
-          set +e
-          python cloud/kanz_validate.py
-          c=$?
-          if [ "$c" != "0" ] && [ "$c" != "6" ]; then exit $c; fi
-          exit 0
+        run: python cloud/kanz_validate.py
       - name: Render
         if: steps.fetch.outputs.code == '0'
         run: python projects/_radar/run_edition.py egx render
       - name: Checks and validation note
         if: steps.fetch.outputs.code == '0'
         run: python cloud/finish.py "out/${{ steps.guard.outputs.date }}"
-      - name: Publish release (draft if NEEDS REVIEW)
+      - name: Publish release (public only when OK, otherwise draft)
         if: steps.fetch.outputs.code == '0'
         id: rel
         run: |
           D=${{ steps.guard.outputs.date }}
-          # repo is public: a run that needs review stays a draft (collaborators only) until someone publishes it
+          T=${{ steps.guard.outputs.tag }}
           DRAFT=$(python -c "import json;print('' if json.load(open('finish.json'))['status']=='OK' else '--draft')")
-          gh release create "egx-$D" out/$D/* $DRAFT --title "EGX close reel $D" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"
-          echo "url=$(gh release view egx-$D --json url -q .url)" >> "$GITHUB_OUTPUT"
+          TITLE="EGX close reel $D"; [ "$RADAR_TEST" = "1" ] && TITLE="$TITLE (test)"
+          gh release create "$T" out/$D/* $DRAFT --title "$TITLE" --notes "$(python -c "import json;print(json.load(open('finish.json'))['line'])")"
+          echo "url=$(gh release view "$T" --json url -q .url)" >> "$GITHUB_OUTPUT"
+      - name: Upload as run artifact too
+        if: steps.fetch.outputs.code == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: egx-reel-${{ steps.guard.outputs.date }}
+          path: out/${{ steps.guard.outputs.date }}/
+          retention-days: 14
       - name: Slack
         if: steps.fetch.outputs.code == '0'
         env:
@@ -91,4 +107,5 @@ jobs:
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then echo "no Slack secret"; exit 0; fi
           curl -sS -X POST -H "Content-Type: application/json" --data "{\"text\":\":x: EGX close reel failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\"}" "$SLACK_WEBHOOK_URL"

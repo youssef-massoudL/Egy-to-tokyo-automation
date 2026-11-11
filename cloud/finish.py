@@ -17,12 +17,12 @@ if v["r_frame_rate"] != "60/1" or (v["width"], v["height"]) != (1080, 1920):
     problems.append(f"video is {v['width']}x{v['height']} {v['r_frame_rate']}, expected 1080x1920 60/1")
 if not any(s["codec_type"] == "audio" for s in streams):
     problems.append("no audio stream")
-status = "NEEDS REVIEW" if (val["status"] != "OK" or problems) else "OK"
+status = "NEEDS REVIEW" if problems else val["status"]   # OK, SINGLE SOURCE, TEST or NEEDS REVIEW
 lines = [f"# Validation: EGX edition, {val['date']}", f"Status: {status}", ""] + [f"- {n}" for n in val["notes"] + problems] + \
         ["", "| Market | Shown % | Second source | Result |", "|---|---|---|---|"] + \
-        [f"| {r['market']} | {r['shown']:+.2f} | {r['source2']}{'' if r['kanz'] is None else ' ' + format(r['kanz'], '+.2f')} | {r['verdict']} |" for r in val["table"]]
+        [f"| {r['market']} | {'closed' if r['shown'] is None else format(r['shown'], '+.2f')} | {r['source2']}{'' if r['kanz'] is None else ' ' + format(r['kanz'], '+.2f')} | {r['verdict']} |" for r in val["table"]]
 (folder / f"{video.stem}_validation.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-if status != "OK":
+if status == "NEEDS REVIEW":
     (folder / "NEEDS REVIEW.txt").write_text("\n".join(val["notes"] + problems) or "see validation note", encoding="utf-8")
 line = f"EGX close reel {val['date']}: EGX30 {val['egx30']:,.1f} ({val['egx30_pct']:+.2f}%) - {status}" + (": " + "; ".join(val["notes"] + problems) if status != "OK" else "")
 Path("finish.json").write_text(json.dumps({"status": status, "line": line, "video": video.name}), encoding="utf-8")

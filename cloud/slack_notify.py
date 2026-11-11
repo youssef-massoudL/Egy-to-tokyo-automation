@@ -3,6 +3,9 @@ import json
 import os
 import urllib.request
 
+if not os.environ.get("SLACK_WEBHOOK_URL", "").strip():
+    print("no SLACK_WEBHOOK_URL secret, skipping Slack")
+    raise SystemExit(0)
 f = json.load(open("finish.json", encoding="utf-8"))
 icon = ":white_check_mark:" if f["status"] == "OK" else ":warning:"
 where = "Download" if f["status"] == "OK" else "Draft (collaborators only), review then publish"
