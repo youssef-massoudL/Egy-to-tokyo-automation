@@ -166,7 +166,16 @@ def render(name):
 
 
 def render_locked(ed, proj, report, date, folder):
-    subprocess.run([sys.executable, "engine/render.py", f"projects/{ed['project']}", "--name", date], cwd=ENGINE_ROOT, check=True)
+    # RADAR_PARALLEL=1 (cloud): render time slices at once on all cores (cloud/render_parallel.py); otherwise one engine render
+    args = [f"projects/{ed['project']}", "--name", date]
+    if os.environ.get("RADAR_PARALLEL") == "1":
+        try:
+            subprocess.run([sys.executable, "cloud/render_parallel.py", *args], cwd=ENGINE_ROOT, check=True)
+        except subprocess.CalledProcessError:
+            print("parallel render failed, falling back to one render", flush=True)
+            subprocess.run([sys.executable, "engine/render.py", *args], cwd=ENGINE_ROOT, check=True)
+    else:
+        subprocess.run([sys.executable, "engine/render.py", *args], cwd=ENGINE_ROOT, check=True)
     final = folder / f"{ed['file']}_{date}.mp4"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(proj / "out" / f"{date}.mp4"), "-i", str(HERE / "audio.m4a"), "-map", "0:v", "-map", "1:a",
                     "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2", "-shortest", str(final)], check=True)

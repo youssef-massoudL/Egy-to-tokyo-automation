@@ -40,6 +40,7 @@ jobs:
     env:
       ED: ${{ github.event.schedule == '35 20,21 * * 1-5' && 'us' || github.event.schedule && 'egx' || inputs.edition }}
       RADAR_OUT: ${{ github.workspace }}/out
+      RADAR_PARALLEL: "1"   # render 4 time slices at once (cloud/render_parallel.py); set "0" to fall back to one render
       GH_TOKEN: ${{ github.token }}
       RADAR_TEST: ${{ (inputs.test || github.event_name == 'push') && '1' || '0' }}
       SITE_TEST: ${{ (inputs.site || github.event_name == 'push') && 'true' || 'false' }}
@@ -72,6 +73,12 @@ jobs:
           else
             echo "tag=$ED-$D" >> "$GITHUB_OUTPUT"; echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
+      - name: Keep Chromium between runs
+        if: steps.guard.outputs.skip == 'false'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
       - name: Install
         if: steps.guard.outputs.skip == 'false'
         run: |
