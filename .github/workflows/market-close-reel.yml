@@ -1,11 +1,7 @@
 name: Market close reel
 on:
-  schedule:
-    # EGX (Cairo -> Tokyo): Sun-Thu. Cairo is UTC+2 in winter, UTC+3 in summer. In winter 11:15 UTC is too early (it stops at once),
-    # 12:15 UTC (14:15 Cairo) makes the reel, 13:15 UTC (15:15 Cairo) is the backup if GitHub skipped it; the release-tag guard drops duplicates.
-    - cron: "15 11,12,13 * * 0-4"
-    # Europe + US: Mon-Fri. New York is UTC-5 in winter, UTC-4 in summer: 15:35 / 16:35 New York in winter, 16:35 / 17:35 in summer.
-    - cron: "35 20,21 * * 1-5"
+  # No GitHub schedule: GitHub's timer fired hours late (12 Nov EGX at 20:52 Cairo). Runs start from Run workflow or an outside timer
+  # calling the workflow_dispatch API (edition egx|us, test false).
   # pushing .github/test-run.json starts a test run that also goes on the website: {"edition": "egx" | "us"}
   push:
     branches: [main]
