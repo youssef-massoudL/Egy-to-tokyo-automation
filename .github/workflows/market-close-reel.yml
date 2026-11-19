@@ -175,3 +175,14 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           RELEASE_URL: ${{ steps.rel.outputs.url }}
         run: python cloud/slack_notify.py $ED "out/${{ steps.guard.outputs.date }}"
+      - name: X
+        # Real runs only, and only while the repo variable X_POST_ENABLED is true: off until someone switches it on.
+        # A redo is not posted again, so a remade reel never makes a second public post; post it by hand if it should replace one.
+        if: ${{ !cancelled() && steps.fin.outcome == 'success' && steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0' && env.RADAR_TEST != '1' && inputs.redo != true && vars.X_POST_ENABLED == 'true' }}
+        env:
+          X_POST_ENABLED: ${{ vars.X_POST_ENABLED }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: python cloud/x_post.py $ED "out/${{ steps.guard.outputs.date }}"
