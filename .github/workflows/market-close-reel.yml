@@ -210,5 +210,5 @@ jobs:
           ZERNIO_TEST: ${{ env.RADAR_TEST == '1' && '1' || '0' }}
           ZERNIO_POST_ENABLED: ${{ vars.ZERNIO_POST_ENABLED }}
           ZERNIO_PLATFORMS: ${{ vars.ZERNIO_PLATFORMS }}
-          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY || secrets.ZERNIO }}   # the key is stored as the secret ZERNIO
         run: python cloud/zernio_post.py $ED "out/${{ steps.guard.outputs.date }}"
