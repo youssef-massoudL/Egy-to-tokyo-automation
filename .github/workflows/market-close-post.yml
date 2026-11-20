@@ -2,7 +2,7 @@ name: Market close post
 on:
   # Starts by itself whenever a reel run starts (the outside timer already calls those after each close), so no new timer is needed:
   #   Sun-Thu 13:30-16:30 Cairo (EGX reel)   -> Saudi + EGX posts
-  #   Mon-Fri 15:15-18:30 New York (US reel) -> S&P 500, Dow Jones and Nasdaq 100 posts (a run before 16:00 waits for the close)
+  #   Mon-Fri 15:15-18:30 New York (US reel) -> the US post: S&P 500, Dow Jones and Nasdaq 100 in one image (waits for 16:00)
   # A reel run at any other time (tests) makes no post.
   workflow_run:
     workflows: ["Market close reel"]
@@ -12,7 +12,7 @@ on:
       market:
         description: "Which post"
         type: choice
-        options: [tasi+egx, us, all, tasi, egx, spx, dji, ndx]
+        options: [tasi+egx, us, all, tasi, egx]
         default: tasi+egx
       test:
         description: "Test run: render now with whatever TradingView shows, no waiting (draft release tagged -test)"
@@ -69,16 +69,16 @@ jobs:
           M=""
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             if [ "$DOW" -ne 5 ] && [ "$DOW" -ne 6 ] && [ "$H" -ge 1330 ] && [ "$H" -le 1630 ]; then M="tasi egx"; fi
-            if [ "$NDOW" -le 5 ] && [ "$NH" -ge 1515 ] && [ "$NH" -le 1830 ]; then M="spx dji ndx"; fi
+            if [ "$NDOW" -le 5 ] && [ "$NH" -ge 1515 ] && [ "$NH" -le 1830 ]; then M="us"; fi
             [ -z "$M" ] && echo "reel run at $H Cairo / $NH New York: not a market close, no post"
           else
             case "${{ inputs.market }}" in
-              tasi+egx) M="tasi egx" ;; us) M="spx dji ndx" ;; all) M="tasi egx spx dji ndx" ;; *) M="${{ inputs.market }}" ;;
+              tasi+egx) M="tasi egx" ;; all) M="tasi egx us" ;; *) M="${{ inputs.market }}" ;;
             esac
           fi
           echo "tasi=$([[ " $M " == *" tasi "* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "egx=$([[ " $M " == *" egx "* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "us=$(for k in spx dji ndx; do [[ " $M " == *" $k "* ]] && printf '%s ' $k; done)" >> "$GITHUB_OUTPUT"
+          echo "us=$([[ " $M " == *" us "* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "go=$([ -n "$M" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         if: steps.guard.outputs.go == 'true'
@@ -155,36 +155,31 @@ jobs:
         with:
           artifact_name: github-pages-egx-${{ github.run_attempt }}
 
-      # ---- United States: S&P 500, Dow Jones, Nasdaq 100 (16:00 New York) ----
-      - name: US posts
+      # ---- United States: one post with S&P 500, Dow Jones and Nasdaq 100 (16:00 New York) ----
+      - name: US post
         id: us
-        if: steps.guard.outputs.us != ''
+        if: steps.guard.outputs.us == 'true'
         continue-on-error: true
-        run: |
-          FAIL=0
-          for MK in ${{ steps.guard.outputs.us }}; do echo "::group::$MK"; python post/run_one.py $MK || FAIL=1; echo "::endgroup::"; done
-          FILES=$(for MK in ${{ steps.guard.outputs.us }}; do [ -f post_site_$MK.ok ] && printf 'post_result_%s.json ' $MK; done)
-          echo "files=$FILES" >> "$GITHUB_OUTPUT"
-          exit $FAIL
+        run: python post/run_one.py us
       - name: Let a running reel deploy first (US)
-        if: steps.us.outputs.files != '' && env.TEST != '1'
+        if: steps.us.outputs.site == 'true' && env.TEST != '1'
         run: |
           for i in $(seq 1 25); do
             N=$(gh run list --workflow market-close-reel.yml --status in_progress --json databaseId -q 'length' 2>/dev/null || echo 0)
             [ "$N" = "0" ] && break
             echo "reel still running ($N), waiting ($i/25)"; sleep 60
           done
-      - name: Website with the US posts
-        if: steps.us.outputs.files != ''
-        run: python post/build_site.py _site_us "${{ steps.cfg.outputs.base_url }}" ${{ steps.us.outputs.files }}
+      - name: Website with the US post
+        if: steps.us.outputs.site == 'true'
+        run: python post/build_site.py _site_us "${{ steps.cfg.outputs.base_url }}" post_result_us.json
       - name: Upload website (US)
-        if: steps.us.outputs.files != ''
+        if: steps.us.outputs.site == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site_us
           name: github-pages-us-${{ github.run_attempt }}
       - name: Deploy website (US)
-        if: steps.us.outputs.files != ''
+        if: steps.us.outputs.site == 'true'
         uses: actions/deploy-pages@v4
         with:
           artifact_name: github-pages-us-${{ github.run_attempt }}

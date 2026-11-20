@@ -145,6 +145,20 @@ const FITS = [[headEl, L === 'wide' ? 1400 : G.W - G.R - G.Lm], [subEl, L === 'w
     const cx = Math.min(Math.max(small.cx, B.x + 60), right - 60);
     put(page, el('div','under ' + small.cls, small.text), {left:px(cx), top:px(underTop), fontSize:px(B.underSize)});
   }
+  if (P.breadths) {   // US report: one companies bar per index, its trading share at the left of the label row
+    const pitch = L === 'wide' ? 125 : 135, barH = L === 'wide' ? 46 : 52;
+    P.breadths.forEach((x, i) => {
+      const top = B.lbl1Top + i * pitch;
+      const share = x.vol_down_pct >= x.vol_up_pct ? `${x.vol_down_pct}% من التداول على الهابطة` : `${x.vol_up_pct}% من التداول على الصاعدة`;
+      put(page, el('div','sec abs', share), {left:px(B.x), top:px(top + 4), fontSize:px(B.underSize), direction:'rtl'});
+      const save = B.barH; B.barH = barH;
+      const gap = L === 'wide' ? 42 : 48;   // label row to bar: room for the Arabic descenders
+      block(top, x.label, top + gap, top + gap + barH + 4, x.down, x.up,
+            `هبطت ${x.down}`, `صعدت ${x.up}`, `هبطت ${x.down}`, `صعدت ${x.up}`);
+      B.barH = save;
+    });
+    return;
+  }
   block(B.lbl1Top, 'عدد الشركات', B.bar1Top, B.under1Top, b.down, b.up,
         `هبطت ${b.down}`, `صعدت ${b.up}`, `هبطت ${b.down}`, `صعدت ${b.up}`);
   block(B.lbl2Top, 'حصة التداول', B.bar2Top, B.under2Top, b.vol_down_pct, b.vol_up_pct,

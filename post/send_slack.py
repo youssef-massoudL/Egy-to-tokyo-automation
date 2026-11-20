@@ -10,8 +10,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-TITLE = {"egx": "إغلاق البورصة المصرية", "tasi": "إغلاق السوق السعودية", "spx": "إغلاق السوق الأمريكية · إس آند بي 500",
-         "dji": "إغلاق السوق الأمريكية · داو جونز", "ndx": "إغلاق السوق الأمريكية · ناسداك 100"}
+TITLE = {"egx": "إغلاق البورصة المصرية", "tasi": "إغلاق السوق السعودية", "us": "إغلاق السوق الأمريكية"}
 
 res = json.loads(Path("post_result.json").read_text(encoding="utf-8"))
 token = os.environ.get("SLACK_BOT_TOKEN", "").strip()
