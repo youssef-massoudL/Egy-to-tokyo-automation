@@ -67,8 +67,27 @@ def upload(key, clip):
     return pre["publicUrl"]
 
 
+def clean_key(raw):
+    """The secret as pasted, minus what a copy often brings along: spaces, quotes, a 'Bearer ' in front."""
+    key = raw.strip().strip("'\"").strip()
+    if key.lower().startswith("bearer "):
+        key = key[7:].strip()
+    return key
+
+
+def key_shape(key):
+    """What the key looks like, never the key: a Zernio key is sk_ + 64 hex, 67 characters."""
+    hexpart = key[3:]
+    return (f"{len(key)} characters, starts with sk_: {'yes' if key.startswith('sk_') else 'no'}, "
+            f"rest is 64 hex: {'yes' if len(hexpart) == 64 and all(c in '0123456789abcdef' for c in hexpart.lower()) else 'no'}")
+
+
 def accounts(key):
     code, data = call(key, "GET", "accounts")
+    if code == 401:
+        raise SystemExit(f"Zernio refused the API key ({data.get('error', '')}). The secret holds {key_shape(key)}. "
+                         "A real key is 67 characters, sk_ + 64 hex. Make a new key at zernio.com/dashboard/api-keys "
+                         "and paste it, whole, as the secret's value.")
     if code != 200:
         raise SystemExit(f"Zernio GET /accounts failed: {code} {json.dumps(data, ensure_ascii=False)[:400]}")
     found = {}
@@ -110,7 +129,7 @@ def main():
     if os.environ.get("ZERNIO_POST_ENABLED", "").strip().lower() != "true" and not dry and not test:
         print("Zernio posting is off (repo variable ZERNIO_POST_ENABLED is not true), skipping")
         return
-    key = os.environ.get("ZERNIO_API_KEY", "").strip()
+    key = clean_key(os.environ.get("ZERNIO_API_KEY", ""))
     if not dry and not key:
         raise SystemExit("the secret ZERNIO_API_KEY is empty")
     platforms = [p.strip().lower() for p in (os.environ.get("ZERNIO_PLATFORMS") or "facebook,twitter").split(",") if p.strip()]
