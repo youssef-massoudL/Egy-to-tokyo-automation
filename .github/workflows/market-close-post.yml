@@ -20,6 +20,10 @@ on:
         description: "Test runs only: pretend it is this session (YYYY-MM-DD HH:MM local), e.g. to remake Thursday's close on a Friday"
         type: string
         default: ""
+      site:
+        description: "Also put this run on the website (only matters for test runs; real runs update it automatically)"
+        type: boolean
+        default: false
       slack:
         description: "Also send this run to Slack (only matters for test runs; real runs always send)"
         type: boolean
@@ -33,29 +37,41 @@ concurrency:
   cancel-in-progress: false
 permissions:
   contents: write
+  pages: write
+  id-token: write
+  actions: read
 jobs:
   post:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 180
+    environment:
+      name: github-pages
     env:
       GH_TOKEN: ${{ github.token }}
       TEST: ${{ inputs.test && '1' || '0' }}
+      TEST_DATE: ${{ inputs.date }}
+      SITE_TEST: ${{ inputs.site && 'true' || 'false' }}
+      SLACK_TEST: ${{ inputs.slack && 'true' || 'false' }}
+      REDO: ${{ inputs.redo && 'true' || 'false' }}
       PYTHONIOENCODING: utf-8
+      KANZ_DB_URL: ${{ secrets.KANZ_DB_URL }}
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+      SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || secrets.CHANNEL || vars.SLACK_CHANNEL_ID }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
     steps:
       - name: Guard (time window, which markets)
         id: guard
         run: |
-          H=$(TZ=Africa/Cairo date +%H%M); DOW=$(TZ=Africa/Cairo date +%u)   # 7 = Sunday
+          H=$(TZ=Africa/Cairo date +%H%M); DOW=$(TZ=Africa/Cairo date +%u)   # 5 Fri, 6 Sat, 7 Sun
+          M="tasi egx"
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            if [ "$DOW" -ge 5 ] && [ "$DOW" -le 6 ] || [ "$H" -lt 1330 ] || [ "$H" -gt 1630 ]; then
-              echo "reel run at $H Cairo, day $DOW: not an EGX/Tadawul close, no post"; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+            if [ "$DOW" -eq 5 ] || [ "$DOW" -eq 6 ] || [ "$H" -lt 1330 ] || [ "$H" -gt 1630 ]; then
+              echo "reel run at $H Cairo, day $DOW: not an EGX/Tadawul close, no post"; M=""
             fi
-            echo "markets=tasi egx" >> "$GITHUB_OUTPUT"
-          else
-            M="${{ inputs.market }}"; [ "$M" = "both" ] && M="tasi egx"
-            echo "markets=$M" >> "$GITHUB_OUTPUT"
-          fi
-          echo "go=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ inputs.market }}" != "both" ]; then M="${{ inputs.market }}"; fi
+          echo "tasi=$([[ " $M " == *" tasi "* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "egx=$([[ " $M " == *" egx "* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "go=$([ -n "$M" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         if: steps.guard.outputs.go == 'true'
       - uses: actions/setup-python@v5
@@ -71,52 +87,65 @@ jobs:
       - name: Install
         if: steps.guard.outputs.go == 'true'
         run: |
-          pip install "playwright>=1.45" psycopg2-binary
+          pip install "playwright>=1.45" psycopg2-binary Pillow
           python -m playwright install --with-deps chromium
-      - name: Make, publish and send each post (Saudi first, it closes first)
+      - name: Configure website
         if: steps.guard.outputs.go == 'true'
-        env:
-          KANZ_DB_URL: ${{ secrets.KANZ_DB_URL }}
-          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
-          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || secrets.CHANNEL || vars.SLACK_CHANNEL_ID }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        id: cfg
+        uses: actions/configure-pages@v5
+
+      # ---- Saudi: closes first (15:00 Riyadh = 14:00 Cairo in winter) ----
+      - name: Saudi post
+        id: tasi
+        if: steps.guard.outputs.tasi == 'true'
+        continue-on-error: true
+        run: python post/run_one.py tasi
+      - name: Website with the Saudi post
+        if: steps.tasi.outputs.site == 'true'
+        run: python post/build_site.py _site_tasi "${{ steps.cfg.outputs.base_url }}" post_result_tasi.json
+      - name: Upload website (Saudi)
+        if: steps.tasi.outputs.site == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site_tasi
+          name: github-pages-tasi-${{ github.run_attempt }}
+      - name: Deploy website (Saudi)
+        if: steps.tasi.outputs.site == 'true'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-tasi-${{ github.run_attempt }}
+
+      # ---- Egypt ----
+      - name: EGX post
+        id: egx
+        if: steps.guard.outputs.egx == 'true'
+        continue-on-error: true
+        run: python post/run_one.py egx
+      - name: Let a running reel deploy first (the site is rebuilt from the live copy, so the newer deploy must come last)
+        if: steps.egx.outputs.site == 'true'
         run: |
-          FAIL=0
-          for MK in ${{ steps.guard.outputs.markets }}; do
-            echo "::group::$MK"
-            if [ "$MK" = "egx" ]; then TZN=Africa/Cairo; else TZN=Asia/Riyadh; fi
-            D=$(TZ=$TZN date +%F)
-            ARGS=""
-            if [ "$TEST" = "1" ]; then
-              ARGS="--test"; [ -n "${{ inputs.date }}" ] && ARGS="$ARGS --date \"${{ inputs.date }}\"" && D=$(echo "${{ inputs.date }}" | cut -c1-10)
-              TAG="post-$MK-$D-test-$GITHUB_RUN_NUMBER"
-            else
-              TAG="post-$MK-$D"
-              if [ "${{ inputs.redo }}" != "true" ] && gh release view "$TAG" >/dev/null 2>&1; then echo "$MK already made today"; echo "::endgroup::"; continue; fi
-            fi
-            set +e
-            eval python post/market_post.py $MK $ARGS --out out/posts
-            CODE=$?
-            set -e
-            case $CODE in
-              0) ;;
-              3) echo "$MK did not trade today (holiday)"; echo "::endgroup::"; continue ;;
-              4) echo "$MK: too early"; echo "::endgroup::"; continue ;;
-              *) echo "::error::$MK post failed (exit $CODE)"; FAIL=1; echo "::endgroup::"; continue ;;
-            esac
-            S=$(python -c "import json;print(json.load(open('post_result.json'))['status'])")
-            LINE=$(python -c "import json;print(json.load(open('post_result.json'))['line'])")
-            DRAFT=""; [ "$S" != "OK" ] && DRAFT="--draft"
-            TITLE="$([ $MK = egx ] && echo 'EGX' || echo 'Tadawul') close post $D$([ "$TEST" = 1 ] && echo ' (test)')"
-            if gh release view "$TAG" >/dev/null 2>&1; then gh release upload "$TAG" out/posts/$D/*$MK* --clobber
-            else gh release create "$TAG" out/posts/$D/*$MK* $DRAFT --title "$TITLE" --notes "$LINE"; fi
-            export RELEASE_URL=$(gh release view "$TAG" --json url -q .url)
-            if [ "$TEST" != "1" ] || [ "${{ inputs.slack }}" = "true" ]; then python post/send_slack.py || FAIL=1; fi
-            echo "$LINE"
-            echo "- $LINE" >> "$GITHUB_STEP_SUMMARY"
-            echo "::endgroup::"
+          for i in $(seq 1 45); do
+            N=$(gh run list --workflow market-close-reel.yml --status in_progress --json databaseId -q 'length' 2>/dev/null || echo 0)
+            Q=$(gh run list --workflow market-close-reel.yml --status queued --json databaseId -q 'length' 2>/dev/null || echo 0)
+            [ "$N" = "0" ] && [ "$Q" = "0" ] && break
+            echo "reel still running ($N running, $Q queued), waiting"; sleep 60
           done
-          exit $FAIL
+      - name: Website with the EGX post
+        if: steps.egx.outputs.site == 'true'
+        run: python post/build_site.py _site_egx "${{ steps.cfg.outputs.base_url }}" post_result_egx.json
+      - name: Upload website (EGX)
+        if: steps.egx.outputs.site == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site_egx
+          name: github-pages-egx-${{ github.run_attempt }}
+      - name: Deploy website (EGX)
+        if: steps.egx.outputs.site == 'true'
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-egx-${{ github.run_attempt }}
+
       - name: Upload as run artifact too
         if: steps.guard.outputs.go == 'true' && !cancelled()
         uses: actions/upload-artifact@v4
@@ -125,3 +154,7 @@ jobs:
           path: out/posts/
           retention-days: 14
           if-no-files-found: ignore
+      - name: Fail the run if a post failed
+        if: steps.tasi.outcome == 'failure' || steps.egx.outcome == 'failure'
+        run: |
+          echo "Saudi: ${{ steps.tasi.outcome }}, EGX: ${{ steps.egx.outcome }}"; exit 1

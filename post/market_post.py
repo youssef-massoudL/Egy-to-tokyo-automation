@@ -593,9 +593,10 @@ def main():
     if status == "NEEDS REVIEW":
         (folder / f"NEEDS REVIEW {m}.txt").write_text("\n".join(notes), encoding="utf-8")
     line = f"{cfg['name']} {f2(home['close'])} ({home['change']:+.2f}%), week {f['week_pct']:+.2f}%, {br['up']}/{br['down']} - {status}"
-    Path("post_result.json").write_text(json.dumps({"market": m, "date": today.isoformat(), "status": status, "line": line,
-                                                    "files": [str(wide), str(tall)], "date_ar": f"{DAYS[today.weekday()]} {dm(today)}"},
-                                                   ensure_ascii=False), encoding="utf-8")
+    result = json.dumps({"market": m, "date": today.isoformat(), "status": status, "line": line,
+                         "files": [str(wide), str(tall)], "date_ar": f"{DAYS[today.weekday()]} {dm(today)}"}, ensure_ascii=False)
+    Path("post_result.json").write_text(result, encoding="utf-8")
+    Path(f"post_result_{m}.json").write_text(result, encoding="utf-8")   # kept per market for the website step
     print(line)
     for n in notes:
         print(" -", n)

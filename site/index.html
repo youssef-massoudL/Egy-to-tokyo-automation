@@ -43,6 +43,16 @@
   .archive a:hover { color: var(--lav); }
   .archive span { color: var(--muted); font-size: 14px; white-space: nowrap; }
   .empty { color: var(--muted); }
+  .post { margin: 0 0 56px; }
+  .post h2 { margin: 0 0 4px; font-size: 22px; }
+  .post h2.arch { margin: 36px 0 8px; font-size: 18px; }
+  .shots { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 200px); gap: 16px; align-items: start; margin-top: 8px; }
+  @media (max-width: 720px) { .shots { grid-template-columns: minmax(0, 1fr) minmax(0, 120px); gap: 10px; } }
+  .shots a { display: block; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+  .shots a:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  .shots img { display: block; width: 100%; height: auto; }
+  .btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+  .btn.ghost { background: transparent; color: var(--lav); border: 1px solid var(--lav); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -55,10 +65,12 @@
   <div class="tabs" role="tablist">
     <button role="tab" id="t-egx" aria-controls="egx" aria-selected="true">من القاهرة لطوكيو</button>
     <button role="tab" id="t-us" aria-controls="us" aria-selected="false">من أوروبا لنيويورك</button>
+    <button role="tab" id="t-posts" aria-controls="posts" aria-selected="false">منشورات الإغلاق</button>
   </div>
 
   <section id="egx" role="tabpanel" aria-labelledby="t-egx" data-kick="أداء الأسواق" data-title="من القاهرة لطوكيو"></section>
   <section id="us" role="tabpanel" aria-labelledby="t-us" data-kick="أسواق الغرب" data-title="من أوروبا لنيويورك" hidden></section>
+  <section id="posts" role="tabpanel" aria-labelledby="t-posts" data-kick="صور الإغلاق" data-title="منشورات الإغلاق" hidden></section>
 </main>
 <script>
 const NAMES = {
@@ -120,7 +132,55 @@ function build(sec) {
 // archive = public GitHub releases of this repo (drafts never appear)
 const repo = location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1];
 const releases = fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`).then(r => r.json());
-document.querySelectorAll("section[role=tabpanel]").forEach(build);
+// close posts: the latest wide (16:9) and tall (9:16) image per market, made by the "Market close post" workflow
+const POSTS = [["tasi", "السوق السعودية · تاسي"], ["egx", "البورصة المصرية · EGX30"]];
+function buildPosts(sec) {
+  const head = el("div");
+  head.style.marginBottom = "28px";
+  head.append(el("div", "kick", sec.dataset.kick), el("h1", null, sec.dataset.title));
+  sec.append(head);
+  for (const [mk, title] of POSTS) {
+    const box = el("div", "post");
+    const date = el("p", "date", "…");
+    const status = el("div");
+    const shots = el("div", "shots");
+    const btns = el("div", "btns");
+    const arch = el("div", "archive");
+    box.append(el("h2", null, title), date, status, shots, btns, el("h2", "arch", "الأيام السابقة · Archive"), arch);
+    sec.append(box);
+    fetch(`posts/${mk}/latest.json`, { cache: "no-store" }).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+      date.textContent = `${d.date_ar} · ${d.date}`;
+      if (d.status !== "OK") status.append(el("p", "note", NOTES[d.status] || d.status));
+      const v = encodeURIComponent(d.date);
+      for (const [k, alt] of [["wide", "16:9"], ["tall", "9:16"]]) {
+        const a = el("a");
+        a.href = `posts/${mk}/${k}.png?v=${v}`;
+        a.setAttribute("aria-label", `${title} ${alt}`);
+        const img = el("img");
+        Object.assign(img, { src: `posts/${mk}/${k}.jpg?v=${v}`, alt: `${title} ${d.date_ar} ${alt}`, loading: "lazy" });
+        a.append(img);
+        shots.append(a);
+        const b = el("a", "btn" + (k === "tall" ? " ghost" : ""), `تحميل ${alt} PNG ↓`);
+        b.href = `posts/${mk}/${k}.png?v=${v}`;
+        b.setAttribute("download", d.files[k]);
+        btns.append(b);
+      }
+    }).catch(() => { date.textContent = "لا يوجد منشور بعد · No post published yet."; });
+    releases.then(list => {
+      const items = list.filter(r => !r.draft && r.tag_name.startsWith(`post-${mk}-`) && !r.tag_name.includes("-test"));
+      if (!items.length) { arch.append(el("p", "empty", "Nothing yet.")); return; }
+      for (const r of items) {
+        for (const a of r.assets.filter(a => a.name.endsWith(".png"))) {
+          const link = el("a");
+          link.href = a.browser_download_url;
+          link.append(el("b", null, `${r.name} · ${a.name.includes("_wide") ? "16:9" : "9:16"}`), el("span", null, (a.size / 1e6).toFixed(1) + " MB · PNG ↓"));
+          arch.append(link);
+        }
+      }
+    }).catch(() => arch.append(el("p", "empty", "Archive unavailable right now.")));
+  }
+}
+document.querySelectorAll("section[role=tabpanel]").forEach(s => s.id === "posts" ? buildPosts(s) : build(s));
 
 const tabs = [...document.querySelectorAll("[role=tab]")];
 function show(id) {
@@ -132,7 +192,7 @@ function show(id) {
   try { history.replaceState(null, "", "#" + id); } catch (e) {}
 }
 tabs.forEach(t => t.addEventListener("click", () => show(t.getAttribute("aria-controls"))));
-if (location.hash === "#us") { show("us"); requestAnimationFrame(() => window.scrollTo(0, 0)); }
+if (location.hash === "#us" || location.hash === "#posts") { show(location.hash.slice(1)); requestAnimationFrame(() => window.scrollTo(0, 0)); }
 </script>
 </body>
 </html>
