@@ -61,3 +61,8 @@ for other in EDITIONS:
             break
         except Exception as e:  # noqa: BLE001 - nothing published yet for that edition
             print(f"{other}: not on the live site at {base} ({e})")
+
+# the close posts (made by the post workflow): carried over too, so a reel deploy never wipes them
+sys.path.insert(0, str(ROOT / "post"))
+from site_posts import carry_posts  # noqa: E402
+carry_posts(site, live)

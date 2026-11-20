@@ -5,4 +5,4 @@ __pycache__/
 finish.json
 .slack_token
 .slack_token*
-post_result.json
+post_result*.json
