@@ -190,6 +190,35 @@ def kanz_history(cfg, tz):
         return [(dt.datetime.fromtimestamp(t, tz).date(), float(cl)) for t, cl in cur.fetchall()]
 
 
+def load_record(m, store, today, home):
+    """Daily closes without the Kanz database: the seed in post/history/<m>.json (Kanz candles up to 19 Nov 2026) merged with
+    the newest copy in <store>/<m>.json (kept in the GitHub release 'post-history' and refreshed after every OK run).
+    If the session before today is missing (a missed run), it is added from TradingView's previous close on the previous
+    Sun-Thu date. Returns ([(date, close)] oldest first, (date, close) added or None)."""
+    closes = {}
+    for p in (HERE / "history" / f"{m}.json", store / f"{m}.json"):
+        if p.exists():
+            closes.update({d: float(c) for d, c in json.loads(p.read_text(encoding="utf-8"))["closes"]})
+    rec = sorted((dt.date.fromisoformat(d), c) for d, c in closes.items() if d < today.isoformat())
+    prev = home["close"] - home["change_abs"]
+    filled = None
+    if rec and abs(rec[-1][1] - prev) > 0.011:
+        d = today - dt.timedelta(days=1)
+        while d.weekday() not in TRADING_DAYS:
+            d -= dt.timedelta(days=1)
+        if d > rec[-1][0]:
+            filled = (d, round(prev, 2))
+            rec.append(filled)
+    return rec, filled
+
+
+def save_record(m, store, hist, today, close):
+    store.mkdir(parents=True, exist_ok=True)
+    rows = [[d.isoformat(), c] for d, c in hist if d < today] + [[today.isoformat(), close]]
+    (store / f"{m}.json").write_text(json.dumps({"source": "seed post/history + daily TradingView closes", "closes": rows[-400:]}),
+                                     encoding="utf-8")
+
+
 def kanz_live(cfg):
     with kanz_conn() as c, c.cursor() as cur:
         cur.execute("select price, change_pct, updated_at_tz from live_quotes where exchange=%s and ticker_symbol=%s", cfg["kanz"])
@@ -473,6 +502,8 @@ def main():
     ap.add_argument("--history")
     ap.add_argument("--out", default=str(ROOT / "out" / "posts"))
     ap.add_argument("--redo", action="store_true")
+    ap.add_argument("--store", default=str(ROOT / "out" / "history"),
+                    help="folder with the newest stored closes (<market>.json); the run adds today's close there when it is OK")
     ap.add_argument("--date", help="test only: pretend it is this session date (YYYY-MM-DD HH:MM), e.g. to re-make the last close on a weekend")
     a = ap.parse_args()
     m, cfg = a.market, MARKETS[a.market]
@@ -507,6 +538,11 @@ def main():
     # wait until the home index holds still after the close (TradingView is 15 minutes behind)
     idx = tv_indices(cfg)
     home_time = dt.datetime.fromtimestamp(idx[cfg["home"]]["time"], tz).date()
+    if a.test and not a.date and home_time != today:   # a test on a weekend / holiday: remake the last session
+        print(f"{m}: test run, using the last session {home_time}")
+        clock = lambda: dt.datetime.combine(home_time, dt.datetime.now(tz).time(), tz)  # noqa: E731
+        now, today = clock(), home_time
+        folder, stem = Path(a.out) / today.isoformat(), FILE.format(m=m, d=today.isoformat())
     if home_time != today and not a.test:
         print(f"{m}: {cfg['home']} has no session today (last bar {home_time}): holiday")
         return 3
@@ -546,7 +582,10 @@ def main():
         hist = kanz_history(cfg, tz)
         src = "Kanz candle_cache"
     else:
-        raise SystemExit("KANZ_DB_URL is not set and no --history file: the week, streak and 'lowest since' lines need the Kanz daily closes")
+        hist, filled = load_record(m, Path(a.store), today, home)
+        src = "stored closes"
+        if filled:
+            notes.append(f"previous close {f2(filled[1])} was missing from the stored closes: added from TradingView as {filled[0]}")
     f = facts(hist, today, home["close"])
 
     # checks
@@ -564,7 +603,7 @@ def main():
             status = "NEEDS REVIEW"
             notes.append(f"Kanz live price {f2(price)} differs from TradingView {f2(home['close'])}")
     else:
-        notes.append("no KANZ_DB_URL: the close was not checked against Kanz live_quotes")
+        notes.append("no KANZ_DB_URL: single source (TradingView); history from the stored closes")
     for sym, lbl, _ in cfg["indices"]:
         r = idx.get(sym)
         if not r or r["change"] is None:
@@ -590,6 +629,8 @@ def main():
          ["", f"Breadth: {br['up']} up / {br['down']} not up ({br['flat']} unchanged) of {br['total']}; "
               f"share volume {br['vol_down_pct']}% in non-rising companies."]
     (folder / f"{stem}_validation.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+    if status == "OK" and not a.test and not a.history:   # keep today's close for tomorrow's week / streak / "lowest since"
+        save_record(m, Path(a.store), hist, today, home["close"])
     if status == "NEEDS REVIEW":
         (folder / f"NEEDS REVIEW {m}.txt").write_text("\n".join(notes), encoding="utf-8")
     line = f"{cfg['name']} {f2(home['close'])} ({home['change']:+.2f}%), week {f['week_pct']:+.2f}%, {br['up']}/{br['down']} - {status}"

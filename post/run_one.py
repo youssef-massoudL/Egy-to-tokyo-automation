@@ -35,7 +35,13 @@ if not test and os.environ.get("REDO") != "true" and gh("release", "view", tag, 
     print(f"{mk}: already made today ({tag})")
     raise SystemExit(0)
 
-args = [sys.executable, "post/market_post.py", mk, "--out", "out/posts"] + (["--test"] if test else []) + (["--date", date_in] if date_in else [])
+# the stored closes (week / streak / "lowest since" without the Kanz database) live in the release "post-history"
+HIST = "post-history"
+Path("out/history").mkdir(parents=True, exist_ok=True)
+got = gh("release", "download", HIST, "--pattern", f"{mk}.json", "--dir", "out/history", "--clobber", check=False)
+print("stored closes:", "downloaded" if got.returncode == 0 else "none yet, starting from the seed in post/history")
+
+args = [sys.executable, "post/market_post.py", mk, "--out", "out/posts", "--store", "out/history"] + (["--test"] if test else []) + (["--date", date_in] if date_in else [])
 code = subprocess.run(args).returncode
 if code in (3, 4):
     print(f"{mk}: {'no session today (holiday)' if code == 3 else 'too early'}, no post")
@@ -44,6 +50,13 @@ if code:
     raise SystemExit(f"{mk}: post failed (exit {code})")
 
 res = json.loads(Path("post_result.json").read_text(encoding="utf-8"))
+store = Path("out/history") / f"{mk}.json"
+if not test and res["status"] == "OK" and store.exists():   # market_post.py added today's close
+    if gh("release", "view", HIST, check=False).returncode:
+        gh("release", "create", HIST, "--prerelease", "--title", "Close post: stored daily closes",
+           "--notes", "Daily closes of EGX30 and TASI used by the close posts. Updated by the workflow after every OK post; do not delete.")
+    gh("release", "upload", HIST, str(store), "--clobber")
+    print("stored closes updated")
 files = [str(p) for p in sorted(Path(f"out/posts/{res['date']}").glob(f"*{mk}*"))]
 title = f"{'EGX' if mk == 'egx' else 'Tadawul'} close post {res['date']}" + (" (test)" if test else "")
 if gh("release", "view", tag, check=False).returncode == 0:
