@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Kanz market close post</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+/* Kanz market-close post. Data comes from window.POST (written by market_post.py); layout "wide" = 2000x1125, "tall" = 1125x2000 CSS px,
+   screenshotted at 2.56x / 1.92x -> 5120x2880 / 2160x3840. Measurements follow the approved 19 Nov 2026 posts. */
+:root{
+  --red:#F4715A; --green:#3AD6A0; --amber:#F0A92B; --neutral:#E2DCEC;
+  --muted:#B3A7C6; --foot:#8A7E9E; --line:#1c1a20; --white:#fff;
+  --font:'Noto Sans','Noto Sans Arabic',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#040404}
+body{font-family:var(--font);color:var(--white);-webkit-font-smoothing:antialiased}
+.page{position:relative;overflow:hidden;
+  background:
+    radial-gradient(ellipse 70% 55% at 0% 100%, rgba(52,16,82,.62) 0%, rgba(40,12,64,.32) 38%, rgba(4,4,4,0) 72%),
+    radial-gradient(ellipse 60% 60% at 18% 55%, rgba(26,25,29,.75) 0%, rgba(4,4,4,0) 70%),
+    radial-gradient(ellipse 80% 45% at 50% 70%, rgba(16,16,16,.9) 0%, rgba(4,4,4,0) 80%),
+    #040404}
+.wide{width:2000px;height:1125px}
+.tall{width:1125px;height:2000px}
+.abs{position:absolute}
+.ltr{direction:ltr;unicode-bidi:isolate;display:inline-block}
+.red{color:var(--red)} .green{color:var(--green)} .amber{color:var(--amber)} .neutral{color:var(--neutral)}
+
+/* logos */
+.logos{position:absolute;display:flex;align-items:center;direction:ltr}
+.logos img{display:block}
+
+/* headline + lines under it */
+.head{font-weight:700;line-height:1.22;text-align:right;white-space:nowrap;letter-spacing:-.2px}
+.sub{color:var(--muted);text-align:right;white-space:nowrap}
+
+/* section labels */
+.sec{color:var(--muted);font-weight:600;text-align:right;white-space:nowrap}
+.lbl{font-weight:700;text-align:right;white-space:nowrap}
+
+/* breadth bars */
+.bar{position:absolute;display:flex;direction:ltr;border-radius:9px;overflow:hidden}
+.bar .seg{height:100%;display:flex;align-items:center;justify-content:center;font-weight:700;white-space:nowrap}
+.bar .seg.r{background:var(--red);color:#3a130b}
+.bar .seg.g{background:var(--green);color:#0D2A20}
+.under{position:absolute;font-weight:700;white-space:nowrap;transform:translateX(-50%);direction:rtl}
+
+/* index bars */
+.axis{position:absolute;border-left:2px dashed var(--foot);opacity:.85}
+.ibar{position:absolute}
+.ibar.r{background:var(--red)} .ibar.g{background:var(--green)}
+.ival{position:absolute;font-weight:700;white-space:nowrap;direction:ltr}
+
+/* stats */
+.stat .k{color:var(--muted);font-weight:600;white-space:nowrap}
+.stat .v{font-weight:700;white-space:nowrap}
+.divider{position:absolute;height:2px;background:var(--line)}
+
+/* cards */
+.card{position:absolute;text-align:right}
+.card .bd{position:absolute;top:0;bottom:0;right:0;width:5px;border-radius:2px}
+.card .t{font-weight:700;white-space:nowrap}
+.card .x{color:var(--muted)}
+
+.foot{color:var(--foot);text-align:right;white-space:nowrap}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const P = window.POST;
+const L = P.layout;                 // "wide" | "tall"
+const root = document.getElementById('root');
+const page = el('div', 'page ' + L); root.appendChild(page);
+
+function el(tag, cls, html){ const e=document.createElement(tag); if(cls) e.className=cls; if(html!==undefined) e.innerHTML=html; return e; }
+function put(parent, e, css){ Object.assign(e.style, css); parent.appendChild(e); return e; }
+function px(v){ return v + 'px'; }
+
+// ---------- geometry per layout ----------
+const G = L === 'wide' ? {
+  W:2000, R:118, Lm:117,
+  logos:true,
+  head:{top:42, size:59.5, lh:1.22}, sub:{top:128, size:24.8, lh:38},
+  breadth:{x:1040, w:842, secTop:311, lbl1Top:349, bar1Top:405, barH:73, under1Top:474, lbl2Top:513, bar2Top:569, under2Top:644,
+           secSize:21, lblSize:23, inSize:27, underSize:20},
+  idx:{rightEdge:898, secTop:277, firstLblTop:334, pitch:78.5, lblSize:23, secSize:21, barOff:45, barH:28, valSize:20,
+       left:117, valW:73, maxLen:278},
+  stats:{kTop:774, vTop:818, cols:[1882,1430,976,523], kSize:20, vSize:33},
+  divider:{top:858},
+  cards:{top:904, n:4, rights:[1882,1420,958,497], w:352, h:112, tSize:22, xSize:18.3, xLh:28, pad:20},
+  foot:{top:1066, size:16.4, lh:25}
+} : {
+  W:1125, R:77, Lm:75,
+  logos:null,
+  head:{bottom:383, size:77, lh:1.17}, sub:{top:408, size:28.5, lh:40},
+  breadth:{x:75, w:973, secTop:511, lbl1Top:554, bar1Top:623, barH:83, under1Top:706, lbl2Top:738, bar2Top:806, under2Top:896,
+           secSize:23, lblSize:26, inSize:29, underSize:21},
+  idx:{rightEdge:1048, secTop:976, firstLblTop:1053, pitch:83.3, lblSize:26, secSize:23, barOff:52, barH:33, valSize:23,
+       left:75, valW:104, maxLen:362},
+  stats:{rowsCenter:1513, pitch:54.4, kSize:25.5, vSize:35.4},
+  divider:{top:1716},
+  cards:{top:1746, n:2, rights:[1048,550], w:316, h:125, tSize:24, xSize:20.5, xLh:35, pad:26},
+  foot:{top:1912, size:18.7, lh:30}
+};
+
+// ---------- logos (wide only) ----------
+if (G.logos){   // positions measured on the approved posts: [left, top, height] for Kanz and for the exchange
+  const k = el('img'); k.src = 'assets/kanz-white.png';
+  put(page, k, {position:'absolute', left:px(P.logo.kanz[0]), top:px(P.logo.kanz[1]), height:px(P.logo.kanz[2])});
+  const x = el('img'); x.src = 'assets/' + P.logo.xchg;
+  put(page, x, {position:'absolute', left:px(P.logo.box[0]), top:px(P.logo.box[1]), height:px(P.logo.box[2])});
+}
+
+// ---------- headline + sub ----------
+const headLines = L === 'wide' ? [P.head_wide] : P.head_tall;
+const hcss = {right:px(G.R), fontSize:px(G.head.size), lineHeight:String(G.head.lh)};
+if (L === 'wide') hcss.top = px(G.head.top); else hcss.bottom = px(2000 - G.head.bottom);   // tall: one or two lines, bottom stays put
+put(page, el('div','head abs', headLines.join('<br>')), hcss);
+put(page, el('div','sub abs', (L==='wide'?P.sub_wide:P.sub_tall).join('<br>')),
+    {right:px(G.R), top:px(G.sub.top), fontSize:px(G.sub.size), lineHeight:px(G.sub.lh)});
+
+// ---------- breadth ----------
+(function(){
+  const B = G.breadth, b = P.breadth;
+  const right = B.x + B.w;
+  put(page, el('div','sec abs','الشركات الصاعدة والهابطة'), {right:px(G.W-right), top:px(B.secTop), fontSize:px(B.secSize)});
+  function block(lblTop, title, barTop, underTop, redVal, greenVal, redText, greenText, redUnder, greenUnder){
+    put(page, el('div','lbl abs',title), {right:px(G.W-right), top:px(lblTop), fontSize:px(B.lblSize)});
+    const bar = put(page, el('div','bar'), {left:px(B.x), top:px(barTop), width:px(B.w), height:px(B.barH)});
+    const tot = redVal + greenVal || 1;
+    const rw = Math.round(B.w * redVal / tot), gw = B.w - rw;
+    const redBig = redVal > greenVal;
+    const rs = put(bar, el('div','seg r', redBig ? redText : ''), {width:px(rw), fontSize:px(B.inSize)});
+    const gs = put(bar, el('div','seg g', redBig ? '' : greenText), {width:px(gw), fontSize:px(B.inSize)});
+    // the smaller side's label sits under its segment, in its colour
+    const small = redBig ? {text:greenUnder, cx:B.x + rw + gw/2, cls:'green'} : {text:redUnder, cx:B.x + rw/2, cls:'red'};
+    const cx = Math.min(Math.max(small.cx, B.x + 60), right - 60);
+    put(page, el('div','under ' + small.cls, small.text), {left:px(cx), top:px(underTop), fontSize:px(B.underSize)});
+  }
+  block(B.lbl1Top, 'عدد الشركات', B.bar1Top, B.under1Top, b.down, b.up,
+        `هبطت ${b.down}`, `صعدت ${b.up}`, `هبطت ${b.down}`, `صعدت ${b.up}`);
+  block(B.lbl2Top, 'حصة التداول', B.bar2Top, B.under2Top, b.vol_down_pct, b.vol_up_pct,
+        `${b.vol_down_pct}%`, `${b.vol_up_pct}%`, `${b.vol_down_pct}%`, `${b.vol_up_pct}%`);
+})();
+
+// ---------- five indices ----------
+(function(){
+  const I = G.idx, rows = P.indices;
+  put(page, el('div','sec abs', P.idx_section), {right:px(G.W - I.rightEdge), top:px(I.secTop), fontSize:px(I.secSize)});
+  const maxAbs = Math.max(...rows.map(r => Math.abs(r.pct)), 0.01);
+  const maxNeg = Math.max(0, ...rows.map(r => -r.pct)), maxPos = Math.max(0, ...rows.map(r => r.pct));
+  const scale = I.maxLen / maxAbs;
+  const axisX = maxNeg > 0 ? I.left + I.valW + maxNeg * scale : Math.min(I.left + 300, I.rightEdge - I.valW - maxPos*scale - 40);
+  const firstBarTop = I.firstLblTop + I.barOff, lastBarTop = I.firstLblTop + (rows.length-1)*I.pitch + I.barOff;
+  put(page, el('div','axis'), {left:px(axisX-1), top:px(firstBarTop - 34), height:px(lastBarTop + I.barH - firstBarTop + 46)});
+  rows.forEach((r, i) => {
+    const top = I.firstLblTop + i*I.pitch;
+    put(page, el('div','lbl abs', r.label), {right:px(G.W - I.rightEdge), top:px(top), fontSize:px(I.lblSize)});
+    const len = Math.max(Math.abs(r.pct) * scale, 3);
+    const neg = r.pct < 0;
+    const bt = top + I.barOff;
+    put(page, el('div','ibar ' + (neg ? 'r' : 'g')), {left:px(neg ? axisX - len : axisX), top:px(bt), width:px(len), height:px(I.barH)});
+    const txt = (r.pct > 0 ? '+' : r.pct < 0 ? '-' : '') + Math.abs(r.pct).toFixed(2) + '%';
+    const v = put(page, el('div','ival ' + (neg ? 'red' : r.pct > 0 ? 'green' : 'neutral'), txt),
+      {top:px(bt + I.barH/2), transform:'translateY(-50%)', fontSize:px(I.valSize)});
+    if (neg) { v.style.right = px(G.W - (axisX - len - 12)); } else { v.style.left = px(axisX + len + 12); }
+  });
+})();
+
+// ---------- stats ----------
+(function(){
+  const S = G.stats, st = P.stats;
+  // every stat line is placed by its vertical centre with a fixed line box, so Arabic and Latin values sit on one line
+  const at = (html, css, size, cy) => put(page, el('div','stat abs', html),
+      Object.assign({fontSize:px(size), lineHeight:px(size*1.3), height:px(size*1.3), top:px(cy - size*0.65)}, css));
+  if (L === 'wide'){
+    st.forEach((s, i) => {
+      const r = S.cols[i];
+      at(`<div class="k">${s.k}</div>`, {right:px(G.W - r)}, S.kSize, S.kTop);
+      at(`<div class="v ${s.color}">${s.v}</div>`, {right:px(G.W - r)}, S.vSize, S.vTop);
+    });
+  } else {
+    st.forEach((s, i) => {
+      const cy = S.rowsCenter + i*S.pitch;
+      at(`<div class="k">${s.k}</div>`, {right:px(G.R)}, S.kSize, cy);
+      at(`<div class="v ${s.color}">${s.v}</div>`, {left:px(G.Lm)}, S.vSize, cy);
+    });
+  }
+  put(page, el('div','divider'), {left:px(L==='wide'?117:G.Lm), width:px(L==='wide'?1765:G.W-G.Lm-G.R), top:px(G.divider.top)});
+})();
+
+// ---------- cards ----------
+(function(){
+  const C = G.cards, cards = (L === 'wide' ? P.cards_wide : P.cards_tall).slice(0, C.n);
+  cards.forEach((c, i) => {
+    const r = C.rights[i];
+    const card = put(page, el('div','card'), {right:px(G.W - r), top:px(C.top), width:px(C.w), minHeight:px(C.h), paddingRight:px(C.pad)});
+    put(card, el('div','bd'), {background:`var(--${c.color})`});
+    put(card, el('div','t', c.title), {fontSize:px(C.tSize), lineHeight:px(C.tSize*1.5)});
+    put(card, el('div','x', c.text), {fontSize:px(C.xSize), lineHeight:px(C.xLh), marginTop:px(L==='wide'?4:10)});
+  });
+})();
+
+// ---------- footer ----------
+put(page, el('div','foot abs', (L==='wide'?P.foot_wide:P.foot_tall).join('<br>')),
+    {right:px(G.R), top:px(G.foot.top), fontSize:px(G.foot.size), lineHeight:px(G.foot.lh)});
+
+window.READY = document.fonts.ready.then(() => Promise.all([...document.images].map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))));
+</script>
+</body>
+</html>

@@ -1,0 +1,127 @@
+name: Market close post
+on:
+  # Starts by itself whenever the EGX reel run starts (the outside timer already calls that one after the Cairo close), so no new timer
+  # is needed. Runs outside Sun-Thu 13:30-16:30 Cairo (the US reel, tests at night) stop at the guard.
+  workflow_run:
+    workflows: ["Market close reel"]
+    types: [requested]
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Which post"
+        type: choice
+        options: [both, tasi, egx]
+        default: both
+      test:
+        description: "Test run: render now with whatever TradingView shows, no waiting (draft release tagged -test)"
+        type: boolean
+        default: true
+      date:
+        description: "Test runs only: pretend it is this session (YYYY-MM-DD HH:MM local), e.g. to remake Thursday's close on a Friday"
+        type: string
+        default: ""
+      slack:
+        description: "Also send this run to Slack (only matters for test runs; real runs always send)"
+        type: boolean
+        default: false
+      redo:
+        description: "Real run only: make today's posts again even if they were already made (replaces them, sends to Slack)"
+        type: boolean
+        default: false
+concurrency:
+  group: ${{ inputs.test && format('post-test-{0}', github.run_id) || 'close-post' }}
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TEST: ${{ inputs.test && '1' || '0' }}
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Guard (time window, which markets)
+        id: guard
+        run: |
+          H=$(TZ=Africa/Cairo date +%H%M); DOW=$(TZ=Africa/Cairo date +%u)   # 7 = Sunday
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            if [ "$DOW" -ge 5 ] && [ "$DOW" -le 6 ] || [ "$H" -lt 1330 ] || [ "$H" -gt 1630 ]; then
+              echo "reel run at $H Cairo, day $DOW: not an EGX/Tadawul close, no post"; echo "go=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            echo "markets=tasi egx" >> "$GITHUB_OUTPUT"
+          else
+            M="${{ inputs.market }}"; [ "$M" = "both" ] && M="tasi egx"
+            echo "markets=$M" >> "$GITHUB_OUTPUT"
+          fi
+          echo "go=true" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        if: steps.guard.outputs.go == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.guard.outputs.go == 'true'
+        with:
+          python-version: "3.12"
+      - name: Keep Chromium between runs
+        if: steps.guard.outputs.go == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-post-${{ runner.os }}
+      - name: Install
+        if: steps.guard.outputs.go == 'true'
+        run: |
+          pip install "playwright>=1.45" psycopg2-binary
+          python -m playwright install --with-deps chromium
+      - name: Make, publish and send each post (Saudi first, it closes first)
+        if: steps.guard.outputs.go == 'true'
+        env:
+          KANZ_DB_URL: ${{ secrets.KANZ_DB_URL }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || secrets.CHANNEL || vars.SLACK_CHANNEL_ID }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          FAIL=0
+          for MK in ${{ steps.guard.outputs.markets }}; do
+            echo "::group::$MK"
+            if [ "$MK" = "egx" ]; then TZN=Africa/Cairo; else TZN=Asia/Riyadh; fi
+            D=$(TZ=$TZN date +%F)
+            ARGS=""
+            if [ "$TEST" = "1" ]; then
+              ARGS="--test"; [ -n "${{ inputs.date }}" ] && ARGS="$ARGS --date \"${{ inputs.date }}\"" && D=$(echo "${{ inputs.date }}" | cut -c1-10)
+              TAG="post-$MK-$D-test-$GITHUB_RUN_NUMBER"
+            else
+              TAG="post-$MK-$D"
+              if [ "${{ inputs.redo }}" != "true" ] && gh release view "$TAG" >/dev/null 2>&1; then echo "$MK already made today"; echo "::endgroup::"; continue; fi
+            fi
+            set +e
+            eval python post/market_post.py $MK $ARGS --out out/posts
+            CODE=$?
+            set -e
+            case $CODE in
+              0) ;;
+              3) echo "$MK did not trade today (holiday)"; echo "::endgroup::"; continue ;;
+              4) echo "$MK: too early"; echo "::endgroup::"; continue ;;
+              *) echo "::error::$MK post failed (exit $CODE)"; FAIL=1; echo "::endgroup::"; continue ;;
+            esac
+            S=$(python -c "import json;print(json.load(open('post_result.json'))['status'])")
+            LINE=$(python -c "import json;print(json.load(open('post_result.json'))['line'])")
+            DRAFT=""; [ "$S" != "OK" ] && DRAFT="--draft"
+            TITLE="$([ $MK = egx ] && echo 'EGX' || echo 'Tadawul') close post $D$([ "$TEST" = 1 ] && echo ' (test)')"
+            if gh release view "$TAG" >/dev/null 2>&1; then gh release upload "$TAG" out/posts/$D/*$MK* --clobber
+            else gh release create "$TAG" out/posts/$D/*$MK* $DRAFT --title "$TITLE" --notes "$LINE"; fi
+            export RELEASE_URL=$(gh release view "$TAG" --json url -q .url)
+            if [ "$TEST" != "1" ] || [ "${{ inputs.slack }}" = "true" ]; then python post/send_slack.py || FAIL=1; fi
+            echo "$LINE"
+            echo "- $LINE" >> "$GITHUB_STEP_SUMMARY"
+            echo "::endgroup::"
+          done
+          exit $FAIL
+      - name: Upload as run artifact too
+        if: steps.guard.outputs.go == 'true' && !cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: close-posts-${{ github.run_id }}
+          path: out/posts/
+          retention-days: 14
+          if-no-files-found: ignore
