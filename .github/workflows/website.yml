@@ -1,0 +1,37 @@
+name: Deploy website
+# Puts the current site/index.html live right away, without waiting for the next reel or post.
+# Runs by itself when the page changes on main, or by hand from Actions. Every video and close post on the live site
+# is carried over unchanged.
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "brand/fonts/**", "brand/logos/kanz-white.png", ".github/workflows/website.yml"]
+  workflow_dispatch:
+concurrency:
+  group: website-deploy
+  cancel-in-progress: false
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Configure website
+        id: cfg
+        uses: actions/configure-pages@v5
+      - name: Build (new page, everything else from the live site)
+        run: python post/build_site.py _site "${{ steps.cfg.outputs.base_url }}"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy
+        uses: actions/deploy-pages@v4
