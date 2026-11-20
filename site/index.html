@@ -133,7 +133,8 @@ function build(sec) {
 const repo = location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1];
 const releases = fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`).then(r => r.json());
 // close posts: the latest wide (16:9) and tall (9:16) image per market, made by the "Market close post" workflow
-const POSTS = [["tasi", "السوق السعودية · تاسي"], ["egx", "البورصة المصرية · EGX30"]];
+const POSTS = [["tasi", "السوق السعودية · تاسي"], ["egx", "البورصة المصرية · EGX30"],
+               ["spx", "السوق الأمريكية · إس آند بي 500"], ["dji", "السوق الأمريكية · داو جونز"], ["ndx", "السوق الأمريكية · ناسداك 100"]];
 function buildPosts(sec) {
   const head = el("div");
   head.style.marginBottom = "28px";

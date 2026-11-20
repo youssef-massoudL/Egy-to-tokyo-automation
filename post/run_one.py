@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 mk = sys.argv[1]
 test = os.environ.get("TEST") == "1"
 date_in = os.environ.get("TEST_DATE", "").strip() if test else ""
-tz = ZoneInfo({"egx": "Africa/Cairo", "tasi": "Asia/Riyadh"}[mk])
+tz = ZoneInfo({"egx": "Africa/Cairo", "tasi": "Asia/Riyadh"}.get(mk, "America/New_York"))   # spx / dji / ndx: New York
 D = date_in[:10] if date_in else dt.datetime.now(tz).date().isoformat()
 run_no = os.environ.get("GITHUB_RUN_NUMBER", "0")
 tag = f"post-{mk}-{D}-test-{run_no}" if test else f"post-{mk}-{D}"
@@ -75,5 +75,7 @@ if not test or os.environ.get("SLACK_TEST") == "true":
     slack_ok = subprocess.run([sys.executable, "post/send_slack.py"]).returncode == 0
 on_site = res["status"] == "OK" or (test and os.environ.get("SITE_TEST") == "true")
 out(site="true" if on_site else "false")
+if on_site:   # marker for steps that run several markets in one go (the three US posts)
+    Path(f"post_site_{mk}.ok").write_text("ok", encoding="utf-8")
 if not slack_ok:
     raise SystemExit(f"{mk}: Slack failed")

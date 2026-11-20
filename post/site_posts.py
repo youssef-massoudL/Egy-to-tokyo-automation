@@ -9,7 +9,7 @@ import shutil
 import urllib.request
 from pathlib import Path
 
-POST_MARKETS = ("tasi", "egx")
+POST_MARKETS = ("tasi", "egx", "spx", "dji", "ndx")
 FILES = ("latest.json", "wide.png", "tall.png", "wide.jpg", "tall.jpg")
 
 

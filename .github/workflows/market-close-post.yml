@@ -1,7 +1,9 @@
 name: Market close post
 on:
-  # Starts by itself whenever the EGX reel run starts (the outside timer already calls that one after the Cairo close), so no new timer
-  # is needed. Runs outside Sun-Thu 13:30-16:30 Cairo (the US reel, tests at night) stop at the guard.
+  # Starts by itself whenever a reel run starts (the outside timer already calls those after each close), so no new timer is needed:
+  #   Sun-Thu 13:30-16:30 Cairo (EGX reel)   -> Saudi + EGX posts
+  #   Mon-Fri 15:15-18:30 New York (US reel) -> S&P 500, Dow Jones and Nasdaq 100 posts (a run before 16:00 waits for the close)
+  # A reel run at any other time (tests) makes no post.
   workflow_run:
     workflows: ["Market close reel"]
     types: [requested]
@@ -10,8 +12,8 @@ on:
       market:
         description: "Which post"
         type: choice
-        options: [both, tasi, egx]
-        default: both
+        options: [tasi+egx, us, all, tasi, egx, spx, dji, ndx]
+        default: tasi+egx
       test:
         description: "Test run: render now with whatever TradingView shows, no waiting (draft release tagged -test)"
         type: boolean
@@ -62,15 +64,21 @@ jobs:
       - name: Guard (time window, which markets)
         id: guard
         run: |
-          H=$(TZ=Africa/Cairo date +%H%M); DOW=$(TZ=Africa/Cairo date +%u)   # 5 Fri, 6 Sat, 7 Sun
-          M="tasi egx"
+          H=$(TZ=Africa/Cairo date +%H%M); DOW=$(TZ=Africa/Cairo date +%u)              # 1 Mon .. 5 Fri, 6 Sat, 7 Sun
+          NH=$(TZ=America/New_York date +%H%M); NDOW=$(TZ=America/New_York date +%u)
+          M=""
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            if [ "$DOW" -eq 5 ] || [ "$DOW" -eq 6 ] || [ "$H" -lt 1330 ] || [ "$H" -gt 1630 ]; then
-              echo "reel run at $H Cairo, day $DOW: not an EGX/Tadawul close, no post"; M=""
-            fi
-          elif [ "${{ inputs.market }}" != "both" ]; then M="${{ inputs.market }}"; fi
+            if [ "$DOW" -ne 5 ] && [ "$DOW" -ne 6 ] && [ "$H" -ge 1330 ] && [ "$H" -le 1630 ]; then M="tasi egx"; fi
+            if [ "$NDOW" -le 5 ] && [ "$NH" -ge 1515 ] && [ "$NH" -le 1830 ]; then M="spx dji ndx"; fi
+            [ -z "$M" ] && echo "reel run at $H Cairo / $NH New York: not a market close, no post"
+          else
+            case "${{ inputs.market }}" in
+              tasi+egx) M="tasi egx" ;; us) M="spx dji ndx" ;; all) M="tasi egx spx dji ndx" ;; *) M="${{ inputs.market }}" ;;
+            esac
+          fi
           echo "tasi=$([[ " $M " == *" tasi "* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "egx=$([[ " $M " == *" egx "* ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "us=$(for k in spx dji ndx; do [[ " $M " == *" $k "* ]] && printf '%s ' $k; done)" >> "$GITHUB_OUTPUT"
           echo "go=$([ -n "$M" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         if: steps.guard.outputs.go == 'true'
@@ -147,6 +155,40 @@ jobs:
         with:
           artifact_name: github-pages-egx-${{ github.run_attempt }}
 
+      # ---- United States: S&P 500, Dow Jones, Nasdaq 100 (16:00 New York) ----
+      - name: US posts
+        id: us
+        if: steps.guard.outputs.us != ''
+        continue-on-error: true
+        run: |
+          FAIL=0
+          for MK in ${{ steps.guard.outputs.us }}; do echo "::group::$MK"; python post/run_one.py $MK || FAIL=1; echo "::endgroup::"; done
+          FILES=$(for MK in ${{ steps.guard.outputs.us }}; do [ -f post_site_$MK.ok ] && printf 'post_result_%s.json ' $MK; done)
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+          exit $FAIL
+      - name: Let a running reel deploy first (US)
+        if: steps.us.outputs.files != '' && env.TEST != '1'
+        run: |
+          for i in $(seq 1 25); do
+            N=$(gh run list --workflow market-close-reel.yml --status in_progress --json databaseId -q 'length' 2>/dev/null || echo 0)
+            [ "$N" = "0" ] && break
+            echo "reel still running ($N), waiting ($i/25)"; sleep 60
+          done
+      - name: Website with the US posts
+        if: steps.us.outputs.files != ''
+        run: python post/build_site.py _site_us "${{ steps.cfg.outputs.base_url }}" ${{ steps.us.outputs.files }}
+      - name: Upload website (US)
+        if: steps.us.outputs.files != ''
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site_us
+          name: github-pages-us-${{ github.run_attempt }}
+      - name: Deploy website (US)
+        if: steps.us.outputs.files != ''
+        uses: actions/deploy-pages@v4
+        with:
+          artifact_name: github-pages-us-${{ github.run_attempt }}
+
       - name: Upload as run artifact too
         if: steps.guard.outputs.go == 'true' && !cancelled()
         uses: actions/upload-artifact@v4
@@ -156,6 +198,6 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
       - name: Fail the run if a post failed
-        if: steps.tasi.outcome == 'failure' || steps.egx.outcome == 'failure'
+        if: steps.tasi.outcome == 'failure' || steps.egx.outcome == 'failure' || steps.us.outcome == 'failure'
         run: |
-          echo "Saudi: ${{ steps.tasi.outcome }}, EGX: ${{ steps.egx.outcome }}"; exit 1
+          echo "Saudi: ${{ steps.tasi.outcome }}, EGX: ${{ steps.egx.outcome }}, US: ${{ steps.us.outcome }}"; exit 1

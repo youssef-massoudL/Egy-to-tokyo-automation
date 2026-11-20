@@ -63,10 +63,40 @@ MARKETS = {
         "masc": (),
     },
 }
+# The Gulf/Egypt markets trade Sun..Thu and their week ends Thursday (defaults below); the US trades Mon..Fri.
+MIDEAST = {"days": (6, 0, 1, 2, 3), "week_end_day": 3, "week_note": "الأسابيع محسوبة من إغلاقات الخميس"}
+MARKETS["egx"].update(MIDEAST, breadth_range=(31, 31))
+MARKETS["tasi"].update(MIDEAST, breadth_range=(240, 320))
+
+US_INDICES = [   # the same five on every US post; the post's own index goes first
+    ("SP:SPX", "إس آند بي 500", "إس آند بي 500"),
+    ("DJ:DJI", "داو جونز الصناعي", "داو جونز"),
+    ("NASDAQ:IXIC", "ناسداك المركب", "ناسداك المركب"),
+    ("NASDAQ:NDX", "ناسداك 100", "ناسداك 100"),
+    ("TVC:RUT", "راسل 2000 للشركات الصغيرة", "راسل 2000"),
+]
+for key, sym, name, kanz, rng in (("spx", "SP:SPX", "إس آند بي 500", ("SP", "SPX"), (495, 510)),
+                                  ("dji", "DJ:DJI", "داو جونز", ("DJ", "DJI"), (30, 30)),
+                                  ("ndx", "NASDAQ:NDX", "ناسداك 100", ("NASDAQ", "NDX"), (95, 105))):
+    MARKETS[key] = {
+        "tz": "America/New_York", "city": "نيويورك", "currency": "بالدولار", "home": sym, "kanz": kanz,
+        "scan": "america", "scan_filter": [{"left": "market_cap_basic", "operation": "egreater", "right": 1e9}],
+        "head": name, "name": name, "sub_name": "", "card_name": name,
+        "breadth_note": f" في {name}", "subs_note": "تغيّرات المؤشرات الأخرى من تريدنج فيو عند الإغلاق",
+        "open": (9, 30), "close": (16, 0), "final_after": (16, 20), "give_up": (17, 30),
+        "logo": {"xchg": None, "kanz": [84, 38, 56], "box": None},
+        "indices": [i for i in US_INDICES if i[0] == sym] + [i for i in US_INDICES if i[0] != sym],
+        "masc": tuple(i[2] for i in US_INDICES),     # index names take a masculine verb (هبط / صعد)
+        "days": (0, 1, 2, 3, 4), "week_end_day": 4, "week_note": "الأسابيع محسوبة من إغلاقات الجمعة", "breadth_range": rng,
+    }
+
 FILE = "kanz-close-post-{m}_{d}"
 STABLE_SECS = 480          # the home index must hold the same value this long before it counts as the close
 POLL_SECS = 60
-TRADING_DAYS = (6, 0, 1, 2, 3)   # Sun..Thu (Python weekday numbers)
+
+
+def same_price(a, b):     # Kanz keeps some indices to one decimal (DJI 50198.2 vs TradingView 50198.17)
+    return abs(a - b) <= max(0.011, abs(b) * 2e-6)
 
 DAYS = ["الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت", "الأحد"]
 MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
@@ -95,6 +125,14 @@ def signed_pct(x):
 
 def color(x):
     return "green" if x > 0 else "red" if x < 0 else "neutral"
+
+
+def co(n):                      # "شركة واحدة", "شركتان", "5 شركات", "16 شركة"
+    if n == 1:
+        return "شركة واحدة"
+    if n == 2:
+        return "شركتان"
+    return f"{n} {companies(n)}"
 
 
 def companies(n):
@@ -162,8 +200,8 @@ def tv_indices(cfg):
 
 
 def tv_breadth(cfg):
-    d = tv_scan(cfg["scan"], {"filter": [{"left": "type", "operation": "equal", "right": "stock"}],
-                              "columns": ["name", "change", "volume", "indexes"], "range": [0, 2000]})
+    d = tv_scan(cfg["scan"], {"filter": [{"left": "type", "operation": "equal", "right": "stock"}] + cfg.get("scan_filter", []),
+                              "columns": ["name", "change", "volume", "indexes"], "range": [0, 8000]})
     rows = [r["d"] for r in d["data"] if any(i.get("proname") == cfg["home"] for i in (r["d"][3] or []))]
     up = [r for r in rows if (r[1] or 0) > 0]
     rest = [r for r in rows if not (r[1] or 0) > 0]          # unchanged counts with the decliners (approved posts)
@@ -190,7 +228,7 @@ def kanz_history(cfg, tz):
         return [(dt.datetime.fromtimestamp(t, tz).date(), float(cl)) for t, cl in cur.fetchall()]
 
 
-def load_record(m, store, today, home):
+def load_record(m, store, today, home, days=(6, 0, 1, 2, 3)):
     """Daily closes without the Kanz database: the seed in post/history/<m>.json (Kanz candles up to 19 Nov 2026) merged with
     the newest copy in <store>/<m>.json (kept in the GitHub release 'post-history' and refreshed after every OK run).
     If the session before today is missing (a missed run), it is added from TradingView's previous close on the previous
@@ -202,9 +240,9 @@ def load_record(m, store, today, home):
     rec = sorted((dt.date.fromisoformat(d), c) for d, c in closes.items() if d < today.isoformat())
     prev = home["close"] - home["change_abs"]
     filled = None
-    if rec and abs(rec[-1][1] - prev) > 0.011:
+    if rec and not same_price(rec[-1][1], prev):
         d = today - dt.timedelta(days=1)
-        while d.weekday() not in TRADING_DAYS:
+        while d.weekday() not in days:
             d -= dt.timedelta(days=1)
         if d > rec[-1][0]:
             filled = (d, round(prev, 2))
@@ -273,7 +311,7 @@ def facts(hist, today, close):
     f["week_base_date"], f["week_base"] = before[-1] if before else h[0]
     f["week_pts"] = close - f["week_base"]
     f["week_pct"] = 100 * f["week_pts"] / f["week_base"]
-    f["week_end"] = today.weekday() == 3          # Thursday: the week's last session
+    f["week_end"] = today.weekday() == 3          # Thursday by default; main() sets it per market (US: Friday)
     # previous complete weeks, newest first: +1 / -1 per week
     lasts = {}
     for d, c in h:
@@ -346,11 +384,11 @@ def compose(m, cfg, now, idx, br, f):
     vol_share = br["vol_down_pct"] if vol_side_down else br["vol_up_pct"]
     count_side_down = dn > up
     mixed = up != dn and count_side_down != vol_side_down
-    line2 = (f"صعدت {up} {companies(up)} وهبطت {dn}، {'لكن ' if mixed else 'و'}{vol_share}% من الأسهم التي تم تداولها "
+    line2 = (f"صعدت {co(up)} وهبطت {dn}، {'لكن ' if mixed else 'و'}{vol_share}% من الأسهم التي تم تداولها "
              f"كانت في شركات {'هبطت' if vol_side_down else 'صعدت'}.")
     sub_wide = [line1, line2]
     sub_tall = [f"أغلق {cfg['name']} عند {f2(close)} {move if pct else 'دون تغيير'}{' ' + p if pct else ''}.",
-                f"صعدت {up} {companies(up)}، وهبطت {dn}."]
+                f"صعدت {co(up)}، وهبطت {dn}."]
 
     # stats
     stats = [
@@ -385,18 +423,18 @@ def compose(m, cfg, now, idx, br, f):
 
     share = round(100 * max(up, dn) / tot) if tot else 0
     if share >= 65:
-        bt = f"{'هبطت' if count_side_down else 'صعدت'} {max(up, dn)} {companies(max(up, dn))} من {tot}"
+        bt = f"{'هبطت' if count_side_down else 'صعدت'} {co(max(up, dn))} من {tot}"
     else:
-        bt = f"صعدت {up} {companies(up)} وهبطت {dn}"
+        bt = f"صعدت {co(up)} وهبطت {dn}"
     side = "هبطت" if vol_side_down else "صعدت"
     if mixed:
         more = "الصاعدة فاق الهابطة" if up > dn else "الهابطة فاق الصاعدة"
         b_text = f"عدد الشركات {more}، لكن من كل 100 سهم تم تداولها، كان هناك {shares_of_100(vol_share)} في شركات {side}."
         b_tall = f"لكن {vol_share}% من التداول كان على الشركات {'الهابطة' if vol_side_down else 'الصاعدة'}."
     else:
-        b_text = (f"صعدت {up} {companies(up)} وهبطت {dn}، أي {share}% منها. ومن كل 100 سهم تم تداولها، كان هناك "
+        b_text = (f"صعدت {co(up)} وهبطت {dn}، أي {share}% منها. ومن كل 100 سهم تم تداولها، كان هناك "
                   f"{shares_of_100(vol_share)} في شركات {side}.")
-        few = f"صعدت {up} {companies(up)} فقط" if count_side_down else f"هبطت {dn} {companies(dn)} فقط"
+        few = f"صعدت {co(up)} فقط" if count_side_down else f"هبطت {co(dn)} فقط"
         b_tall = f"{few}، و{vol_share}% من التداول كان على الشركات {'الهابطة' if vol_side_down else 'الصاعدة'}."
     c_breadth = {"title": bt, "text": b_text, "tall": b_tall, "color": "amber" if mixed else ("red" if count_side_down else "green")}
 
@@ -464,7 +502,7 @@ def compose(m, cfg, now, idx, br, f):
     stamp = f"{now:%H:%M} بتوقيت {cfg['city']}، {dm(now)} {now.year}"
     foot_wide = [f"لقطة تريدنج فيو «عند الإغلاق» {stamp} · {prev_txt} · الصاعدة والهابطة من {tot} شركة{cfg['breadth_note']}",
                  f"· حصة التداول محسوبة بعدد الأسهم المتداولة لا بقيمتها {cfg['currency']} · {cfg['subs_note']} · "
-                 f"الأسابيع محسوبة من إغلاقات الخميس · محتوى تعليمي وليس نصيحة استثمارية."]
+                 f"{cfg['week_note']} · محتوى تعليمي وليس نصيحة استثمارية."]
     foot_tall = [f"لقطة تريدنج فيو عند الإغلاق {stamp}",
                  "· حصة التداول بعدد الأسهم لا بقيمتها · محتوى تعليمي وليس نصيحة استثمارية."]
 
@@ -522,12 +560,16 @@ def main():
     folder = Path(a.out) / today.isoformat()
     stem = FILE.format(m=m, d=today.isoformat())
     if not a.test:
-        if today.weekday() not in TRADING_DAYS:
+        if today.weekday() not in cfg["days"]:
             print(f"{m}: no session on {DAYS[today.weekday()]}")
             return 3
-        if now < at(cfg["close"]):
+        if now < at(cfg["close"]) - dt.timedelta(minutes=75):
             print(f"{m}: too early ({now:%H:%M}, closes {cfg['close'][0]}:{cfg['close'][1]:02d})")
             return 4
+        if now < at(cfg["close"]):   # started a little before the close (a reel timer slot): wait for it
+            print(f"{m}: {now:%H:%M}, waiting for the {cfg['close'][0]}:{cfg['close'][1]:02d} close", flush=True)
+            time.sleep((at(cfg["close"]) - now).total_seconds())
+            now = clock()
         if (folder / f"{stem}_wide.png").exists() and not a.redo:
             print(f"{m}: already made today")
             return 5
@@ -555,7 +597,7 @@ def main():
             kanz_ok = True
             if db:
                 price, _, upd = kanz_live(cfg)
-                kanz_ok = abs(price - idx[cfg["home"]]["close"]) < 0.011 and upd.astimezone(tz) >= at(cfg["close"])
+                kanz_ok = same_price(price, idx[cfg["home"]]["close"]) and upd.astimezone(tz) >= at(cfg["close"])
             stable = time.time() - since_t >= STABLE_SECS
             if now >= at(cfg["final_after"]) and stable and kanz_ok:
                 break
@@ -582,7 +624,7 @@ def main():
         hist = kanz_history(cfg, tz)
         src = "Kanz candle_cache"
     else:
-        hist, filled = load_record(m, Path(a.store), today, home)
+        hist, filled = load_record(m, Path(a.store), today, home, cfg["days"])
         src = "stored closes"
         if filled:
             notes.append(f"previous close {f2(filled[1])} was missing from the stored closes: added from TradingView as {filled[0]}")
@@ -590,14 +632,15 @@ def main():
 
     # checks
     prev_tv = home["close"] - home["change_abs"]
-    f["prev_ok"] = abs(prev_tv - f["prev_close"]) < 0.011
+    f["week_end"] = today.weekday() == cfg["week_end_day"]
+    f["prev_ok"] = same_price(f["prev_close"], prev_tv)
     table = [("previous close", f2(prev_tv), f"{src} {f['prev_date']} {f2(f['prev_close'])}", "agree" if f["prev_ok"] else "DISAGREE")]
     if not f["prev_ok"]:
         status = "NEEDS REVIEW" if status == "OK" else status
         notes.append(f"TradingView previous close {f2(prev_tv)} differs from {src} {f2(f['prev_close'])} on {f['prev_date']}")
     if db:
         price, kpct, upd = kanz_live(cfg)
-        ok = abs(price - home["close"]) < 0.011
+        ok = same_price(price, home["close"])
         table.append(("home close", f2(home["close"]), f"Kanz live_quotes {f2(price)} ({kpct:+.2f}%, updated {upd.astimezone(tz):%H:%M})", "agree" if ok else "DISAGREE"))
         if not ok and status == "OK":
             status = "NEEDS REVIEW"
@@ -614,7 +657,8 @@ def main():
             notes.append(f"{sym} moved {r['change']:+.2f}%: check it")
         elif dt.datetime.fromtimestamp(r["time"], tz).date() != today and not sym.startswith("FTSE:"):
             notes.append(f"{sym} last bar is {dt.datetime.fromtimestamp(r['time'], tz).date()}, not today")
-    if m == "egx" and br["total"] != 31 or m == "tasi" and not 240 <= br["total"] <= 320:
+    lo, hi = cfg["breadth_range"]
+    if not lo <= br["total"] <= hi:
         status = "NEEDS REVIEW" if status == "OK" else status
         notes.append(f"breadth counted {br['total']} companies in {cfg['home']}: check the index membership")
 

@@ -111,17 +111,21 @@ const G = L === 'wide' ? {
 if (G.logos){   // positions measured on the approved posts: [left, top, height] for Kanz and for the exchange
   const k = el('img'); k.src = 'assets/kanz-white.png';
   put(page, k, {position:'absolute', left:px(P.logo.kanz[0]), top:px(P.logo.kanz[1]), height:px(P.logo.kanz[2])});
-  const x = el('img'); x.src = 'assets/' + P.logo.xchg;
-  put(page, x, {position:'absolute', left:px(P.logo.box[0]), top:px(P.logo.box[1]), height:px(P.logo.box[2])});
+  if (P.logo.xchg) {   // the US posts carry Kanz only
+    const x = el('img'); x.src = 'assets/' + P.logo.xchg;
+    put(page, x, {position:'absolute', left:px(P.logo.box[0]), top:px(P.logo.box[1]), height:px(P.logo.box[2])});
+  }
 }
 
 // ---------- headline + sub ----------
 const headLines = L === 'wide' ? [P.head_wide] : P.head_tall;
 const hcss = {right:px(G.R), fontSize:px(G.head.size), lineHeight:String(G.head.lh)};
 if (L === 'wide') hcss.top = px(G.head.top); else hcss.bottom = px(2000 - G.head.bottom);   // tall: one or two lines, bottom stays put
-put(page, el('div','head abs', headLines.join('<br>')), hcss);
-put(page, el('div','sub abs', (L==='wide'?P.sub_wide:P.sub_tall).join('<br>')),
+const headEl = put(page, el('div','head abs', headLines.join('<br>')), hcss);
+const subEl = put(page, el('div','sub abs', (L==='wide'?P.sub_wide:P.sub_tall).join('<br>')),
     {right:px(G.R), top:px(G.sub.top), fontSize:px(G.sub.size), lineHeight:px(G.sub.lh)});
+// long names (US indices) must never run into the logos or off the page: shrink the font until the block fits
+const FITS = [[headEl, L === 'wide' ? 1400 : G.W - G.R - G.Lm], [subEl, L === 'wide' ? 1765 : G.W - G.R - G.Lm]];
 
 // ---------- breadth ----------
 (function(){
@@ -200,7 +204,8 @@ put(page, el('div','sub abs', (L==='wide'?P.sub_wide:P.sub_tall).join('<br>')),
     const r = C.rights[i];
     const card = put(page, el('div','card'), {right:px(G.W - r), top:px(C.top), width:px(C.w), minHeight:px(C.h), paddingRight:px(C.pad)});
     put(card, el('div','bd'), {background:`var(--${c.color})`});
-    put(card, el('div','t', c.title), {fontSize:px(C.tSize), lineHeight:px(C.tSize*1.5)});
+    const t = put(card, el('div','t', c.title), {fontSize:px(C.tSize), lineHeight:px(C.tSize*1.5), display:'inline-block'});
+    FITS.push([t, C.w - C.pad]);
     put(card, el('div','x', c.text), {fontSize:px(C.xSize), lineHeight:px(C.xLh), marginTop:px(L==='wide'?4:10)});
   });
 })();
@@ -209,7 +214,13 @@ put(page, el('div','sub abs', (L==='wide'?P.sub_wide:P.sub_tall).join('<br>')),
 put(page, el('div','foot abs', (L==='wide'?P.foot_wide:P.foot_tall).join('<br>')),
     {right:px(G.R), top:px(G.foot.top), fontSize:px(G.foot.size), lineHeight:px(G.foot.lh)});
 
-window.READY = document.fonts.ready.then(() => Promise.all([...document.images].map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))));
+function fitAll(){
+  for (const [e, maxW] of FITS) {
+    let s = parseFloat(e.style.fontSize);
+    while (e.getBoundingClientRect().width > maxW && s > 10) { s -= 0.5; e.style.fontSize = px(s); }
+  }
+}
+window.READY = document.fonts.ready.then(fitAll).then(() => Promise.all([...document.images].map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))));
 </script>
 </body>
 </html>
