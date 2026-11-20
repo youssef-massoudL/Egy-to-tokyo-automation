@@ -1,12 +1,11 @@
 name: Market close post
 on:
-  # Starts by itself whenever a reel run starts (the outside timer already calls those after each close), so no new timer is needed:
-  #   Sun-Thu 13:30-16:30 Cairo (EGX reel)   -> Saudi + EGX posts
-  #   Mon-Fri 15:15-18:30 New York (US reel) -> the US post: S&P 500, Dow Jones and Nasdaq 100 in one image (waits for 16:00)
-  # A reel run at any other time (tests) makes no post.
-  workflow_run:
-    workflows: ["Market close reel"]
-    types: [requested]
+  # Manual only (Actions -> Market close post -> Run workflow). The user turned the automatic runs off on 2026-11-20.
+  # They used to start with every reel run: Sun-Thu 13:30-16:30 Cairo -> Saudi + EGX, Mon-Fri 15:15-18:30 New York -> US.
+  # To switch that back on, add under "on:":
+  #   workflow_run:
+  #     workflows: ["Market close reel"]
+  #     types: [requested]
   workflow_dispatch:
     inputs:
       market:
