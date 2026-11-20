@@ -186,3 +186,13 @@ jobs:
           X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
           X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
         run: python cloud/x_post.py $ED "out/${{ steps.guard.outputs.date }}"
+      - name: Instagram
+        # Same rules as X: real runs only, never a redo, and only while the repo variable IG_POST_ENABLED is true.
+        # Runs even if the X step failed: one platform refusing does not hold the other back.
+        if: ${{ !cancelled() && steps.fin.outcome == 'success' && steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0' && env.RADAR_TEST != '1' && inputs.redo != true && vars.IG_POST_ENABLED == 'true' }}
+        env:
+          IG_POST_ENABLED: ${{ vars.IG_POST_ENABLED }}
+          IG_GRAPH_HOST: ${{ vars.IG_GRAPH_HOST }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: python cloud/ig_post.py $ED "out/${{ steps.guard.outputs.date }}"

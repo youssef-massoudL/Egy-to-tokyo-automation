@@ -1,4 +1,4 @@
-"""Post the day's reel to X: the MP4 with the same one line Slack gets (the markets and the date).
+"""Post the day's reel to X: the MP4 with the caption from cloud/caption.py.
 
 Off unless X_POST_ENABLED=true (a repo variable), so nothing reaches X until someone switches it on.
 Needs the Kanz X account's OAuth 1.0a keys as repo secrets: X_API_KEY, X_API_SECRET (the app's consumer key and
@@ -25,9 +25,11 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import caption  # noqa: E402
+
 API = "https://api.x.com/2"
 CHUNK = 4 * 1024 * 1024   # X: keep each segment at or below 5 MB
-TITLE = {"egx": "من القاهرة لطوكيو", "us": "من أوروبا لنيويورك"}
 SECRETS = ("X_API_KEY", "X_API_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_TOKEN_SECRET")
 
 
@@ -98,12 +100,13 @@ def main():
         return
     video = folder / fin["video"]
     site = json.loads((folder / f"{video.stem}_site.json").read_text(encoding="utf-8"))
-    text = f"{TITLE[name]} · {site['weekday']} {site['date_ar']}"
+    text = caption.build(name, site)["x"]   # the fixed line per edition: cloud/caption.py
 
     clip = for_x(video)
     blob = clip.read_bytes()
     if dry:
-        print(f"dry run: would post {clip.name} ({len(blob) / 1e6:.1f} MB, {-(-len(blob) // CHUNK)} segments) with: {text}")
+        print(f"dry run: would post {clip.name} ({len(blob) / 1e6:.1f} MB, {-(-len(blob) // CHUNK)} segments) with:")
+        print(text)
         return
 
     media = call(keys, "POST", "media/upload/initialize", ctype="application/json",
@@ -120,8 +123,17 @@ def main():
         time.sleep(max(1, int(info.get("check_after_secs", 5))))
         info = call(keys, "GET", "media/upload", {"command": "STATUS", "media_id": media_id}).get("data", {}).get("processing_info")
 
-    post = call(keys, "POST", "tweets", ctype="application/json",
-                body=json.dumps({"text": text, "media": {"media_ids": [media_id]}}, ensure_ascii=False).encode())
+    def tweet(words):
+        return call(keys, "POST", "tweets", ctype="application/json",
+                    body=json.dumps({"text": words, "media": {"media_ids": [media_id]}}, ensure_ascii=False).encode())
+
+    try:
+        post = tweet(text)
+    except SystemExit as e:   # the caption is the same every day: if X calls it a duplicate, add the date and post once more
+        if "duplicate" not in str(e).lower():
+            raise
+        print("X called the caption a duplicate, posting it with the date")
+        post = tweet(f"{text}\n{site['weekday']} {site['date_ar']}")
     print("posted to X:", post["data"]["id"], f"({len(blob) / 1e6:.1f} MB)")
 
 
