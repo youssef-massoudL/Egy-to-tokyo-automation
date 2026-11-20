@@ -23,6 +23,9 @@
                  border-radius: 999px; padding: 8px 16px; cursor: pointer; }
   .tabs button[aria-selected="true"] { color: #11081a; background: var(--lav); border-color: var(--lav); }
   .tabs button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .tabs.sub { gap: 4px; margin: 0 0 28px; padding-bottom: 0; border-bottom: 1px solid var(--line); }
+  .tabs.sub button { border: 0; border-radius: 0; padding: 8px 14px 10px; margin-bottom: -1px; border-bottom: 2px solid transparent; }
+  .tabs.sub button[aria-selected="true"] { color: var(--lav); background: transparent; border-bottom-color: var(--lav); }
   .kick { color: var(--lav); font-weight: 500; font-size: 14px; }
   h1 { font: 700 clamp(28px, 6vw, 44px)/1.15 "Thmanyah Display", "IBM Plex Sans Arabic", sans-serif; margin: 0 0 4px; }
   .grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 32px; align-items: start; }
@@ -62,15 +65,30 @@
     <div class="kick">Kanz · Market close reels</div>
     <img src="kanz-white.png" alt="Kanz">
   </header>
-  <div class="tabs" role="tablist">
-    <button role="tab" id="t-egx" aria-controls="egx" aria-selected="true">من القاهرة لطوكيو</button>
-    <button role="tab" id="t-us" aria-controls="us" aria-selected="false">من أوروبا لنيويورك</button>
+  <div class="tabs" role="tablist" aria-label="المحتوى">
+    <button role="tab" id="t-videos" aria-controls="videos" aria-selected="true">الفيديوهات</button>
     <button role="tab" id="t-posts" aria-controls="posts" aria-selected="false">منشورات الإغلاق</button>
   </div>
 
-  <section id="egx" role="tabpanel" aria-labelledby="t-egx" data-kick="أداء الأسواق" data-title="من القاهرة لطوكيو"></section>
-  <section id="us" role="tabpanel" aria-labelledby="t-us" data-kick="أسواق الغرب" data-title="من أوروبا لنيويورك" hidden></section>
-  <section id="posts" role="tabpanel" aria-labelledby="t-posts" data-kick="صور الإغلاق" data-title="منشورات الإغلاق" hidden></section>
+  <section id="videos" role="tabpanel" aria-labelledby="t-videos">
+    <div class="tabs sub" role="tablist" aria-label="الفيديوهات">
+      <button role="tab" id="t-egx" aria-controls="egx" aria-selected="true">من القاهرة لطوكيو</button>
+      <button role="tab" id="t-us" aria-controls="us" aria-selected="false">من أوروبا لنيويورك</button>
+    </div>
+    <section id="egx" role="tabpanel" aria-labelledby="t-egx" data-kick="أداء الأسواق" data-title="من القاهرة لطوكيو"></section>
+    <section id="us" role="tabpanel" aria-labelledby="t-us" data-kick="أسواق الغرب" data-title="من أوروبا لنيويورك" hidden></section>
+  </section>
+
+  <section id="posts" role="tabpanel" aria-labelledby="t-posts" hidden>
+    <div class="tabs sub" role="tablist" aria-label="منشورات الإغلاق">
+      <button role="tab" id="t-post-tasi" aria-controls="post-tasi" aria-selected="true">السعودية</button>
+      <button role="tab" id="t-post-egx" aria-controls="post-egx" aria-selected="false">مصر</button>
+      <button role="tab" id="t-post-us" aria-controls="post-us" aria-selected="false">أمريكا</button>
+    </div>
+    <section id="post-tasi" role="tabpanel" aria-labelledby="t-post-tasi" data-kick="منشور الإغلاق · تاسي" data-title="السوق السعودية"></section>
+    <section id="post-egx" role="tabpanel" aria-labelledby="t-post-egx" data-kick="منشور الإغلاق · EGX30" data-title="البورصة المصرية" hidden></section>
+    <section id="post-us" role="tabpanel" aria-labelledby="t-post-us" data-kick="منشور الإغلاق · إس آند بي 500 وداو جونز وناسداك 100" data-title="السوق الأمريكية" hidden></section>
+  </section>
 </main>
 <script>
 const NAMES = {
@@ -133,22 +151,20 @@ function build(sec) {
 const repo = location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1];
 const releases = fetch(`https://api.github.com/repos/${repo}/releases?per_page=100`).then(r => r.json());
 // close posts: the latest wide (16:9) and tall (9:16) image per market, made by the "Market close post" workflow
-const POSTS = [["tasi", "السوق السعودية · تاسي"], ["egx", "البورصة المصرية · EGX30"],
-               ["us", "السوق الأمريكية · إس آند بي 500 وداو جونز وناسداك 100"]];
-function buildPosts(sec) {
-  const head = el("div");
-  head.style.marginBottom = "28px";
-  head.append(el("div", "kick", sec.dataset.kick), el("h1", null, sec.dataset.title));
-  sec.append(head);
-  for (const [mk, title] of POSTS) {
+function buildPost(sec) {
+  const mk = sec.id.slice(5), title = sec.dataset.title;  // post-tasi -> tasi
+  {
+    const head = el("div");
+    head.style.marginBottom = "12px";
+    head.append(el("div", "kick", sec.dataset.kick), el("h1", null, title));
     const box = el("div", "post");
     const date = el("p", "date", "…");
     const status = el("div");
     const shots = el("div", "shots");
     const btns = el("div", "btns");
     const arch = el("div", "archive");
-    box.append(el("h2", null, title), date, status, shots, btns, el("h2", "arch", "الأيام السابقة · Archive"), arch);
-    sec.append(box);
+    box.append(date, status, shots, btns, el("h2", "arch", "الأيام السابقة · Archive"), arch);
+    sec.append(head, box);
     fetch(`posts/${mk}/latest.json`, { cache: "no-store" }).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
       date.textContent = `${d.date_ar} · ${d.date}`;
       if (d.status !== "OK") status.append(el("p", "note", NOTES[d.status] || d.status));
@@ -181,19 +197,39 @@ function buildPosts(sec) {
     }).catch(() => arch.append(el("p", "empty", "Archive unavailable right now.")));
   }
 }
-document.querySelectorAll("section[role=tabpanel]").forEach(s => s.id === "posts" ? buildPosts(s) : build(s));
+["egx", "us"].forEach(id => build(document.getElementById(id)));
+["tasi", "egx", "us"].forEach(mk => buildPost(document.getElementById("post-" + mk)));
 
+// two levels of tabs: الفيديوهات / منشورات الإغلاق, and inside each one tab per reel or market.
+// The address keeps the inner tab (#egx, #us, #post-tasi, #post-egx, #post-us), so a link opens the right one.
 const tabs = [...document.querySelectorAll("[role=tab]")];
-function show(id) {
-  for (const t of tabs) {
-    const on = t.getAttribute("aria-controls") === id;
+const tabFor = id => tabs.find(t => t.getAttribute("aria-controls") === id);
+function select(tab) {
+  for (const t of tab.closest("[role=tablist]").querySelectorAll("[role=tab]")) {
+    const on = t === tab;
     t.setAttribute("aria-selected", on);
     document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
   }
-  try { history.replaceState(null, "", "#" + id); } catch (e) {}
+}
+function current(panel) {  // the inner tab shown in an outer panel
+  const t = panel.querySelector(".tabs.sub [aria-selected=true]");
+  return t ? t.getAttribute("aria-controls") : panel.id;
+}
+function show(id) {
+  const tab = tabFor(id);
+  if (!tab) return;
+  select(tab);
+  const outer = tab.closest("section[role=tabpanel]");
+  if (outer) select(tabFor(outer.id));
+  try { history.replaceState(null, "", "#" + current(document.getElementById(id))); } catch (e) {}
 }
 tabs.forEach(t => t.addEventListener("click", () => show(t.getAttribute("aria-controls"))));
-if (location.hash === "#us" || location.hash === "#posts") { show(location.hash.slice(1)); requestAnimationFrame(() => window.scrollTo(0, 0)); }
+function fromHash() {
+  const id = location.hash.slice(1);
+  if (id && tabFor(id)) { show(id); requestAnimationFrame(() => window.scrollTo(0, 0)); }
+}
+fromHash();
+window.addEventListener("hashchange", fromHash);
 </script>
 </body>
 </html>
