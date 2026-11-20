@@ -29,6 +29,10 @@ on:
         description: "Real run only: make today's reel again even if it was already made (replaces it, sends to Slack)"
         type: boolean
         default: false
+      social_test:
+        description: "Test run only: private social test through Zernio (Facebook gets an unpublished draft Reel, X is skipped)"
+        type: boolean
+        default: false
 concurrency:
   # real runs of one edition queue one after another; every test run gets its own lane, so a stuck test never blocks anything
   group: ${{ (github.event_name == 'push' || inputs.test) && format('test-{0}', github.run_id) || format('close-{0}', github.event.schedule == '35 20,21 * * 1-5' && 'us' || inputs.edition || 'egx') }}
@@ -196,3 +200,15 @@ jobs:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         run: python cloud/ig_post.py $ED "out/${{ steps.guard.outputs.date }}"
+      - name: Zernio (Facebook + X)
+        # Same rules as X and Instagram: real runs only, never a redo, and only while the repo variable ZERNIO_POST_ENABLED is true.
+        # Platforms come from the repo variable ZERNIO_PLATFORMS (default facebook,twitter). Keep X_POST_ENABLED off while
+        # twitter is in that list, or X gets the reel twice.
+        # A test run with "private social test" ticked runs it too, but only as a private Facebook draft (X skipped), whatever the variable says.
+        if: ${{ !cancelled() && steps.fin.outcome == 'success' && steps.fetch.outcome == 'success' && steps.fetch.outputs.code == '0' && ((env.RADAR_TEST != '1' && inputs.redo != true && vars.ZERNIO_POST_ENABLED == 'true') || (env.RADAR_TEST == '1' && inputs.social_test == true)) }}
+        env:
+          ZERNIO_TEST: ${{ env.RADAR_TEST == '1' && '1' || '0' }}
+          ZERNIO_POST_ENABLED: ${{ vars.ZERNIO_POST_ENABLED }}
+          ZERNIO_PLATFORMS: ${{ vars.ZERNIO_PLATFORMS }}
+          ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY }}
+        run: python cloud/zernio_post.py $ED "out/${{ steps.guard.outputs.date }}"
