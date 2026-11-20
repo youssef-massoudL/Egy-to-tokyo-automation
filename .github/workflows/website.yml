@@ -1,11 +1,12 @@
 name: Deploy website
-# Puts the current site/index.html live right away, without waiting for the next reel or post.
-# Runs by itself when the page changes on main, or by hand from Actions. Every video and close post on the live site
-# is carried over unchanged.
+# Puts the current site/index.html live right away, without waiting for the next reel or post, and builds the
+# "فريق كنز" tab (team/) from the kanz-team branch. Runs by itself when the page changes on main, or by hand from
+# Actions (do that after changing the kanz-team branch). Every video and close post on the live site is carried over
+# unchanged, and the reel and post deploys carry team/ over from the live site.
 on:
   push:
     branches: [main]
-    paths: ["site/**", "brand/fonts/**", "brand/logos/kanz-white.png", ".github/workflows/website.yml"]
+    paths: ["site/**", "brand/fonts/**", "brand/logos/kanz-white.png", "post/site_posts.py", "post/build_site.py", ".github/workflows/website.yml"]
   workflow_dispatch:
 concurrency:
   group: website-deploy
@@ -22,13 +23,30 @@ jobs:
       name: github-pages
     steps:
       - uses: actions/checkout@v4
+      - name: Get the kanz-team branch (the فريق كنز tab)
+        uses: actions/checkout@v4
+        with:
+          ref: kanz-team
+          path: team-src
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Configure website
         id: cfg
         uses: actions/configure-pages@v5
-      - name: Build (new page, everything else from the live site)
+      - name: Build the فريق كنز tab
+        working-directory: team-src/frontend
+        env:
+          SITE_BASE: ${{ steps.cfg.outputs.base_path }}/team/
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+      - name: Build (new page and team tab, every video and post from the live site)
+        env:
+          TEAM_DIST: team-src/frontend/dist
         run: python post/build_site.py _site "${{ steps.cfg.outputs.base_url }}"
       - uses: actions/upload-pages-artifact@v3
         with:

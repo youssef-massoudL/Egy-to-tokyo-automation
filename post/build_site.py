@@ -11,7 +11,7 @@ ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT / "cloud"))
 from editions import EDITIONS  # noqa: E402
-from site_posts import carry_posts, put_post  # noqa: E402
+from site_posts import carry_posts, put_post, team  # noqa: E402
 
 site, live, results = Path(sys.argv[1]), (sys.argv[2] if len(sys.argv) > 2 else "").rstrip("/"), sys.argv[3:]
 site.mkdir(parents=True, exist_ok=True)
@@ -23,6 +23,7 @@ shutil.copy(ROOT / "brand" / "logos" / "kanz-white.png", site / "kanz-white.png"
 
 made = {put_post(site, r) for r in results}
 carry_posts(site, live, skip=made)
+team(site, live)   # the فريق كنز tab
 
 for ed in EDITIONS:   # the reels, unchanged
     if not live:

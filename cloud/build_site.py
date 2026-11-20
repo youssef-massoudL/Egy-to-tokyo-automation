@@ -64,5 +64,6 @@ for other in EDITIONS:
 
 # the close posts (made by the post workflow): carried over too, so a reel deploy never wipes them
 sys.path.insert(0, str(ROOT / "post"))
-from site_posts import carry_posts  # noqa: E402
+from site_posts import carry_posts, team  # noqa: E402
 carry_posts(site, live)
+team(site, live)   # the فريق كنز tab
