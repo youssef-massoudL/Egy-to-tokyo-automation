@@ -16,8 +16,9 @@ function spaFallback(): Plugin {
 }
 
 export default defineConfig({
-  // The repository's name: GitHub Pages serves the site from this subfolder.
-  base: "/kanz-team/",
+  // The folder the site is served from. On the Kanz Market Close site it is the "team" tab:
+  // SITE_BASE=/Egy-to-tokyo-automation/team/ (set by that repo's Deploy website workflow).
+  base: process.env.SITE_BASE || "/kanz-team/",
   plugins: [react(), spaFallback()],
   server: {
     port: 5173,

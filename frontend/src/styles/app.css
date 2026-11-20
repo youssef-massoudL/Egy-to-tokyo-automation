@@ -8,8 +8,8 @@ img { max-width: 100%; }
 body {
   background: var(--canvas);
   color: var(--on-surface);
-  /* DM Sans has no Arabic, so Arabic text falls through to Cairo. */
-  font-family: "DM Sans", "Cairo", sans-serif;
+  /* The Kanz Market Close site's font, which covers Arabic and Latin. */
+  font-family: "IBM Plex Sans Arabic", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
@@ -79,9 +79,7 @@ p { text-wrap: pretty; }
   padding: 28px var(--page-px) 64px;
 }
 .page-title {
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font: 700 clamp(28px, 6vw, 44px)/1.15 "Thmanyah Display", "IBM Plex Sans Arabic", sans-serif;
   color: var(--text-high);
 }
 .page-sub {
@@ -785,3 +783,36 @@ textarea.input { resize: none; min-height: 40px; line-height: 1.6; field-sizing:
   .ad-download-actions { width: 100%; }
   .ad-download-actions .pill { flex: 1; justify-content: center; }
 }
+
+/* ── Site header: the Kanz Market Close site's (site/index.html there) ─────── */
+.site-head {
+  width: 100%;
+  max-width: var(--page-max-w);
+  margin-inline: auto;
+  padding: 32px var(--page-px) 0;
+  line-height: 1.6;
+}
+.site-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-block-end: 8px; }
+.site-top img { display: block; height: 28px; width: auto; }
+.site-kick { color: var(--secondary); font-weight: 500; font-size: 14px; }
+.site-tabs { display: flex; gap: 8px; margin: 20px 0 28px; flex-wrap: wrap; }
+.site-tabs a {
+  font-weight: 500;
+  color: var(--text-low);
+  border: 1px solid var(--border-medium);
+  border-radius: 999px;
+  padding: 8px 16px;
+}
+.site-tabs a:hover { color: var(--text-high); }
+.site-tabs a[aria-current="page"] { color: var(--on-secondary); background: var(--secondary); border-color: var(--secondary); }
+.site-sub { display: flex; gap: 4px; flex-wrap: wrap; border-block-end: 1px solid var(--border-medium); }
+.site-sub a {
+  font-weight: 500;
+  color: var(--text-low);
+  padding: 8px 14px 10px;
+  margin-block-end: -1px;
+  border-block-end: 2px solid transparent;
+}
+.site-sub a:hover { color: var(--text-high); }
+.site-sub a[aria-current="page"] { color: var(--secondary); border-block-end-color: var(--secondary); }
+.site-tabs a:focus-visible, .site-sub a:focus-visible { outline: 2px solid var(--text-high); outline-offset: 2px; }

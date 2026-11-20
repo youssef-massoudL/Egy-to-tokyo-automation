@@ -1,5 +1,10 @@
 # Kanz team
 
+> **This branch** (`kanz-team` in Egy-to-tokyo-automation) is KanzMS/kanz-team's `dev` branch, restyled as the
+> **فريق كنز** tab of the Kanz Market Close site: its colours, fonts, header and tabs. That repo's **Deploy website**
+> workflow builds it into `team/` (`SITE_BASE=/Egy-to-tokyo-automation/team/`); run that workflow after changing this
+> branch. The gh-pages deploy workflow is removed here; KanzMS/kanz-team keeps its own.
+
 A site for the Kanz team: a library of logos and designs that copy on click, the brand docs, and templates for making posts. A static React site, deployed to GitHub Pages from the `dev` branch, using MokhbirPro's design system.
 
 **The site is public.** There is no sign-in, so anyone with the URL can read everything in `content/`. Don't add anything that isn't OK to share.

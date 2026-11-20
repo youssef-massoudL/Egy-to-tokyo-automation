@@ -1,48 +1,48 @@
 /* The tokens this site uses, named after MokhbirPro's
-   Radar/frontend/src/styles/tokens.css (dark palette) but set to black and
-   white: the accent ("secondary", "gold") is white. Error stays red so a
-   failure still reads as one. A new colour is added here, never hard-coded
-   in a component. */
+   Radar/frontend/src/styles/tokens.css (dark palette), set to the Kanz Market
+   Close site's colours (its site/index.html): near-black violet surfaces,
+   violet lines and the lavender accent (--lav #d5adef). A new colour is added
+   here, never hard-coded in a component. */
 :root {
-  --surface: #141414;
-  --surface-dim: #0a0a0a;
-  --surface-cont-low: #1a1a1a;
-  --surface-cont-mid: #222222;
-  --surface-cont-high: #2a2a2a;
-  --on-surface: #f2f2f2;
-  --secondary: #ffffff;
-  --secondary-hover: #e0e0e0;
-  --secondary-glow: rgba(255, 255, 255, 0.12);
-  --gold-ink: #ffffff;
-  --gold-border: rgba(255, 255, 255, 0.35);
-  --on-secondary: #000000;
-  --error: #ffb4ab;
-  --red-border: rgba(239, 68, 68, 0.25);
-  --bear-bg: rgba(239, 68, 68, 0.1);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-medium: rgba(255, 255, 255, 0.15);
-  --border-hover: rgba(255, 255, 255, 0.24);
-  --text-high: #fff;
-  --text-mid: rgba(255, 255, 255, 0.9);
-  --text-low: rgba(255, 255, 255, 0.6);
-  --fill-subtle: rgba(255, 255, 255, 0.03);
-  --hd-fill: oklch(0.16 0 0 / 0.72);
+  --surface: #141217;
+  --surface-dim: #08070b;
+  --surface-cont-low: #19161d;
+  --surface-cont-mid: #201c25;
+  --surface-cont-high: #2a2430;
+  --on-surface: #eee6f2;
+  --secondary: #d5adef;
+  --secondary-hover: #e2c4f4;
+  --secondary-glow: rgba(213, 173, 239, 0.14);
+  --gold-ink: #d5adef;
+  --gold-border: rgba(213, 173, 239, 0.4);
+  --on-secondary: #11081a;
+  --error: #e5534b;
+  --red-border: rgba(229, 83, 75, 0.3);
+  --bear-bg: rgba(229, 83, 75, 0.1);
+  --border-subtle: #1d1226;
+  --border-medium: #281339;
+  --border-hover: #4a2a66;
+  --text-high: #eee6f2;
+  --text-mid: rgba(238, 230, 242, 0.9);
+  --text-low: #9a95a0;
+  --fill-subtle: rgba(213, 173, 239, 0.05);
+  --hd-fill: rgba(8, 7, 11, 0.86);
   --hd-blur: blur(20px) saturate(140%);
-  --hd-border: oklch(1 0 0 / 0.18);
-  --hd-inset: inset 0 1px 0 oklch(1 0 0 / 0.16), inset 0 -1px 0 oklch(0 0 0 / 0.08);
-  --hd-shadow: 0 16px 40px -8px oklch(0 0 0 / 0.55), 0 4px 10px -3px oklch(0 0 0 / 0.35);
-  --scrollbar-thumb: rgba(255, 255, 255, 0.32);
+  --hd-border: #281339;
+  --hd-inset: none;
+  --hd-shadow: none;
+  --scrollbar-thumb: #281339;
   --scrollbar-track: transparent;
 
   --canvas: var(--surface-dim);
-  --ambient-pool: var(--surface);
-  --ambient-pool-soft: color-mix(in oklch, var(--surface) 86%, var(--surface-dim));
-  --ambient-warm: rgba(255, 255, 255, 0.03);
-  --ambient-dot: rgba(255, 255, 255, 0.072);
-  --grain-opacity: 0.034;
+  --ambient-pool: var(--surface-dim);
+  --ambient-pool-soft: var(--surface-dim);
+  --ambient-warm: transparent;
+  --ambient-dot: transparent;
+  --grain-opacity: 0;
 
-  --page-max-w: 1680px;
-  --page-px: clamp(16px, 3vw, 40px);
+  --page-max-w: 980px;
+  --page-px: 16px;
 
   --ease-out: cubic-bezier(0.2, 0, 0, 1);
   --ease-bounce: cubic-bezier(0.34, 1.36, 0.64, 1);
