@@ -123,13 +123,14 @@ jobs:
         continue-on-error: true
         run: python post/run_one.py egx
       - name: Let a running reel deploy first (the site is rebuilt from the live copy, so the newer deploy must come last)
-        if: steps.egx.outputs.site == 'true'
+        # Real runs only, and only reels already running: a queued reel builds its site later and carries the posts over itself.
+        # Capped at 25 minutes; after that the post goes on the site anyway and the reel's own deploy carries it over.
+        if: steps.egx.outputs.site == 'true' && env.TEST != '1'
         run: |
-          for i in $(seq 1 45); do
+          for i in $(seq 1 25); do
             N=$(gh run list --workflow market-close-reel.yml --status in_progress --json databaseId -q 'length' 2>/dev/null || echo 0)
-            Q=$(gh run list --workflow market-close-reel.yml --status queued --json databaseId -q 'length' 2>/dev/null || echo 0)
-            [ "$N" = "0" ] && [ "$Q" = "0" ] && break
-            echo "reel still running ($N running, $Q queued), waiting"; sleep 60
+            [ "$N" = "0" ] && break
+            echo "reel still running ($N), waiting ($i/25)"; sleep 60
           done
       - name: Website with the EGX post
         if: steps.egx.outputs.site == 'true'
