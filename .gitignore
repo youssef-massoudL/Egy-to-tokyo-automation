@@ -3,6 +3,7 @@ projects/*/out/
 node_modules/
 __pycache__/
 finish.json
+social_links.json
 .slack_token
 .slack_token*
 post_result*.json

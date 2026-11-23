@@ -31,12 +31,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import caption  # noqa: E402
-from ig_post import for_ig  # noqa: E402
+import social_links  # noqa: E402
+from ig_post import COVER_MS, for_ig  # noqa: E402
 from x_post import for_x  # noqa: E402
 
 API = "https://zernio.com/api/v1"
 ENCODE = {"facebook": for_ig, "instagram": for_ig, "twitter": for_x}
-EXTRA = {"facebook": {"contentType": "reel"}}   # platformSpecificData per platform
+EXTRA = {"facebook": {"contentType": "reel"}, "instagram": {"thumbOffset": COVER_MS}}   # platformSpecificData per platform
 DONE = ("published", "failed", "cancelled", "draft")
 
 
@@ -118,6 +119,17 @@ def post(key, platform, account_id, text, media_url, idem, draft=False):
         if code == 200:
             p = data.get("post", data)
             entry = (p.get("platforms") or [{}])[0]
+    for _ in range(4):   # published, but the public link (needed for the Slack message) can come a moment later
+        if entry.get("status") != "published" or entry.get("platformPostUrl") or not p.get("_id"):
+            break
+        time.sleep(15)
+        try:
+            code, data = call(key, "GET", f"posts/{p['_id']}")
+        except Exception:   # the post is already out: a link that cannot be read must not turn it into a failure
+            break
+        fresh = (data.get("post", data).get("platforms") or [{}])[0] if code == 200 else {}
+        if fresh.get("platformPostUrl"):
+            entry = fresh
     return {**entry, "postId": p.get("_id")}
 
 
@@ -190,6 +202,10 @@ def main():
         except Exception as e:   # one platform failing never holds the others back
             res = {"status": "failed", "errorMessage": str(e)[:400]}
         if res.get("status") == "published":
+            link = res.get("platformPostUrl")
+            if not link and p == "twitter" and res.get("platformPostId"):
+                link = f"https://x.com/i/status/{res['platformPostId']}"
+            social_links.add(name, folder, p, link)
             print(f"posted to {p} (@{acc[0].get('username')}): {res.get('platformPostUrl')}")
         else:
             print(f"{p} NOT posted: status {res.get('status')}, {res.get('errorCategory', '')} {res.get('errorMessage', '')}".strip())

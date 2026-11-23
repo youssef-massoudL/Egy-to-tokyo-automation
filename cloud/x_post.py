@@ -27,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import caption  # noqa: E402
+import social_links  # noqa: E402
 
 API = "https://api.x.com/2"
 CHUNK = 4 * 1024 * 1024   # X: keep each segment at or below 5 MB
@@ -134,6 +135,7 @@ def main():
             raise
         print("X called the caption a duplicate, posting it with the date")
         post = tweet(f"{text}\n{site['weekday']} {site['date_ar']}")
+    social_links.add(name, folder, "twitter", f"https://x.com/i/status/{post['data']['id']}")
     print("posted to X:", post["data"]["id"], f"({len(blob) / 1e6:.1f} MB)")
 
 

@@ -27,8 +27,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import caption  # noqa: E402
+import social_links  # noqa: E402
 
 VERSION = "v23.0"
+COVER_MS = 1000   # the Reel cover: the opening screen with the markets and the day, fully on in both editions from 0.8 to 1.2 s
 SECRETS = ("IG_USER_ID", "IG_ACCESS_TOKEN")
 
 
@@ -86,7 +88,8 @@ def main():
         return
 
     box = call(host, token, "POST", f"{user}/media",
-               {"media_type": "REELS", "upload_type": "resumable", "caption": text, "share_to_feed": "true"})
+               {"media_type": "REELS", "upload_type": "resumable", "caption": text, "share_to_feed": "true",
+                "thumb_offset": str(COVER_MS)})
     cid = box["id"]
     req = urllib.request.Request(box.get("uri") or f"https://rupload.facebook.com/ig-api-upload/{VERSION}/{cid}", data=blob,
                                  method="POST", headers={"Authorization": f"OAuth {token}", "offset": "0", "file_size": str(len(blob))})
@@ -108,6 +111,7 @@ def main():
 
     post = call(host, token, "POST", f"{user}/media_publish", {"creation_id": cid})
     link = call(host, token, "GET", post["id"], {"fields": "permalink"}).get("permalink", "")
+    social_links.add(name, folder, "instagram", link)
     print("posted to Instagram:", post["id"], link, f"({len(blob) / 1e6:.1f} MB)")
 
 

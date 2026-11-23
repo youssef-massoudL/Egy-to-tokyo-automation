@@ -1,4 +1,5 @@
-"""Send the day's reel to Slack: the MP4 with one line, the markets (edition title) and the date. Nothing else is ever posted.
+"""Send the day's reel to Slack: the MP4 with one line, the markets (edition title) and the date, and under it the links of
+the social posts this run made (cloud/social_links.py; no line when it made none). Nothing else is ever posted.
 
 With SLACK_BOT_TOKEN + SLACK_CHANNEL_ID: uploads the MP4 itself, with the day and the markets as its message.
   (Slack app with bot scopes files:write and chat:write, invited to the channel.)
@@ -11,6 +12,9 @@ import sys
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import social_links  # noqa: E402
 
 NAMES = {
     "egx30": "EGX30 · مصر", "tasi": "تاسي · السعودية", "dfmgi": "سوق دبي", "fadgi": "فوتسي أبوظبي", "nifty": "نيفتي 50 · الهند",
@@ -38,6 +42,9 @@ if fin["status"] == "NEEDS REVIEW":   # only finished reels go to Slack; a held 
     print("needs review, not sent to Slack")
     raise SystemExit(0)
 text = f"*{TITLE[name]}* · {site['weekday']} {site['date_ar']}"   # just the markets and the date: the video says the rest
+links = social_links.slack_line(name, folder)
+if links:
+    text += f"\n{links}"
 
 
 def call(method, data=None, raw=None, url=None, ctype=None):
