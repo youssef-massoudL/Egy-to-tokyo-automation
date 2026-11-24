@@ -96,6 +96,7 @@ jobs:
         run: |
           pip install "playwright>=1.45" psycopg2-binary Pillow
           python -m playwright install --with-deps chromium
+          sudo apt-get install -y ffmpeg   # cover frame of a reel taken from its release
       - name: Configure website
         if: steps.guard.outputs.go == 'true'
         id: cfg
@@ -119,7 +120,7 @@ jobs:
       - name: Deploy website (Saudi)
         if: steps.tasi.outputs.site == 'true'
         continue-on-error: true
-        uses: actions/deploy-pages@v4
+        uses: ./.github/actions/deploy-site
         with:
           artifact_name: github-pages-tasi-${{ github.run_attempt }}
 
@@ -150,7 +151,7 @@ jobs:
           name: github-pages-egx-${{ github.run_attempt }}
       - name: Deploy website (EGX)
         if: steps.egx.outputs.site == 'true'
-        uses: actions/deploy-pages@v4
+        uses: ./.github/actions/deploy-site
         with:
           artifact_name: github-pages-egx-${{ github.run_attempt }}
 
@@ -179,7 +180,7 @@ jobs:
           name: github-pages-us-${{ github.run_attempt }}
       - name: Deploy website (US)
         if: steps.us.outputs.site == 'true'
-        uses: actions/deploy-pages@v4
+        uses: ./.github/actions/deploy-site
         with:
           artifact_name: github-pages-us-${{ github.run_attempt }}
 

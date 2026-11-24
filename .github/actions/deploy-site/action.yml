@@ -1,0 +1,49 @@
+name: Deploy site (with retries)
+description: >
+  actions/deploy-pages, tried up to four times. GitHub's artifact list lags a moment behind the upload, so a deploy right
+  after the upload fails with 'No artifacts named "github-pages-1" were found' although the artifact is there
+  (github.com/actions/deploy-pages/issues/451; it hit the reels of 20, 23 and 24 Nov 2026). A fixed pause is not enough:
+  the lag varies. Usually costs 10 seconds; at worst about 4 minutes.
+inputs:
+  artifact_name:
+    description: Name given to upload-pages-artifact. Must hold the run attempt, so a re-run does not find two of the same name.
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: sleep 10
+    - name: Deploy, first try
+      id: t1
+      continue-on-error: true
+      uses: actions/deploy-pages@v4
+      with:
+        artifact_name: ${{ inputs.artifact_name }}
+    - if: steps.t1.outcome == 'failure'
+      shell: bash
+      run: echo "::warning::Website deploy try 1 failed, trying again in 30 s"; sleep 30
+    - name: Deploy, second try
+      id: t2
+      if: steps.t1.outcome == 'failure'
+      continue-on-error: true
+      uses: actions/deploy-pages@v4
+      with:
+        artifact_name: ${{ inputs.artifact_name }}
+    - if: steps.t2.outcome == 'failure'
+      shell: bash
+      run: echo "::warning::Website deploy try 2 failed, trying again in 60 s"; sleep 60
+    - name: Deploy, third try
+      id: t3
+      if: steps.t2.outcome == 'failure'
+      continue-on-error: true
+      uses: actions/deploy-pages@v4
+      with:
+        artifact_name: ${{ inputs.artifact_name }}
+    - if: steps.t3.outcome == 'failure'
+      shell: bash
+      run: echo "::warning::Website deploy try 3 failed, last try in 120 s"; sleep 120
+    - name: Deploy, last try
+      if: steps.t3.outcome == 'failure'
+      uses: actions/deploy-pages@v4
+      with:
+        artifact_name: ${{ inputs.artifact_name }}

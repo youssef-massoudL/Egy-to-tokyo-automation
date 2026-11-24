@@ -167,7 +167,7 @@ jobs:
       - name: Deploy website
         if: steps.fin.outputs.site == 'true'
         id: pages
-        uses: actions/deploy-pages@v4
+        uses: ./.github/actions/deploy-site
         with:
           artifact_name: github-pages-${{ github.run_attempt }}
       - name: X
