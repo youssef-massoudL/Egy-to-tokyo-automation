@@ -1,7 +1,7 @@
 name: Market close post
 on:
   # Daily again from 2026-11-25 for Saudi + EGX: starts with every reel run, and posts only inside Sun-Thu 13:30-16:30 Cairo
-  # (the reel's outside timer fires at 14:15 and 15:15; the second one is the backup and skips what is already made).
+  # (the reel's outside timer fires at 14:40 and 15:15; the second one is the backup and skips what is already made).
   # The US post stays manual (Actions -> Market close post -> Run workflow).
   workflow_run:
     workflows: ["Market close reel"]

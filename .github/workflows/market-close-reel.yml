@@ -150,7 +150,7 @@ jobs:
         with:
           name: ${{ env.ED }}-reel-${{ steps.guard.outputs.date }}
           path: out/${{ steps.guard.outputs.date }}/
-          retention-days: 14
+          retention-days: 2   # a spare copy only: the release keeps the same files for good
       - name: Configure website
         if: steps.fin.outputs.site == 'true'
         id: cfg

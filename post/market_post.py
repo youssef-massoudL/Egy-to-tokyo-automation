@@ -36,7 +36,8 @@ MARKETS = {
         "tz": "Africa/Cairo", "city": "القاهرة", "currency": "بالجنيه", "home": "EGX:EGX30", "kanz": ("EGX", "EGX30"),
         "scan": "egypt", "head": "المؤشر", "name": "EGX30", "sub_name": "EGX30 ", "card_name": "المؤشر",
         "breadth_note": " في EGX30", "subs_note": "تغيّرات المؤشرات الفرعية وفوتسي مصر من تريدنج فيو عند الإغلاق",
-        "open": (10, 0), "close": (14, 30), "final_after": (14, 45), "give_up": (15, 45),
+        "open": (10, 0), "close": (14, 30), "give_up": (15, 45),
+        "final_after": (15, 0),   # the last EGX30 value lands about 14:40 and TradingView shows it 15 minutes later (14:55)
         "logo": {"xchg": "egx-logo.png", "kanz": [84, 38, 56], "box": [358.2, 30.9, 77.7]},
         "indices": [  # (TradingView symbol, bar label, short name for text)
             ("EGX:EGX30", "أكبر 30 شركة EGX30", "أكبر 30 شركة"),
