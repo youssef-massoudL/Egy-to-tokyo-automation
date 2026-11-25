@@ -1,6 +1,7 @@
-"""One market's close post in GitHub Actions: make it, publish the release, send it to Slack. Usage: python post/run_one.py egx|tasi
+"""One market's close post in GitHub Actions: make it, publish the release, post it to social media, send it to Slack. Usage: python post/run_one.py egx|tasi
 Env: TEST=1 (test run), TEST_DATE ("YYYY-MM-DD HH:MM", tests only), SLACK_TEST=true (send a test to Slack), SITE_TEST=true
-(put a test on the website), REDO=true (real run: make today's again), plus the Kanz / Slack secrets.
+(put a test on the website), REDO=true (real run: make today's again; never posted to social media a second time),
+SOCIAL_TEST=true (test runs: private Facebook draft through Zernio), plus the Kanz / Slack / Zernio secrets.
 Writes to $GITHUB_OUTPUT: site=true when this post should go on the website. Exit 1 when the post failed."""
 import datetime as dt
 import json
@@ -70,10 +71,23 @@ if summary:
     with open(summary, "a", encoding="utf-8") as f:
         f.write(f"- {res['line']} ({os.environ['RELEASE_URL']})\n")
 
+# Social media first, so the Slack message can carry the links. Real runs only and never a redo (no second public post);
+# a failure or a hang here never holds Slack or the website back. post/social_post.py has the rest of the rules.
+social_ok = True
+private = test and os.environ.get("SOCIAL_TEST") == "true"
+if private or (not test and os.environ.get("REDO") != "true"):
+    try:
+        social_ok = subprocess.run([sys.executable, "post/social_post.py"],
+                                   env={**os.environ, "ZERNIO_TEST": "1" if private else "0"}, timeout=1500).returncode == 0
+    except subprocess.TimeoutExpired:
+        print("social posting took over 25 minutes, stopped")
+        social_ok = False
+
 slack_ok = True
 if not test or os.environ.get("SLACK_TEST") == "true":
     slack_ok = subprocess.run([sys.executable, "post/send_slack.py"]).returncode == 0
 on_site = res["status"] == "OK" or (test and os.environ.get("SITE_TEST") == "true")
 out(site="true" if on_site else "false")
-if not slack_ok:
-    raise SystemExit(f"{mk}: Slack failed")
+if not slack_ok or not social_ok:
+    failed = [n for n, ok in (("social posting", social_ok), ("Slack", slack_ok)) if not ok]
+    raise SystemExit(f"{mk}: {' and '.join(failed)} failed")

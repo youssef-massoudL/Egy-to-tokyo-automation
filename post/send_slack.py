@@ -6,9 +6,13 @@ A post with status NEEDS REVIEW is never sent: it waits as a draft release for a
 """
 import json
 import os
+import sys
 import urllib.parse
 import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "cloud"))
+import social_links  # noqa: E402
 
 TITLE = {"egx": "إغلاق البورصة المصرية", "tasi": "إغلاق السوق السعودية", "us": "إغلاق السوق الأمريكية"}
 
@@ -25,6 +29,9 @@ if res["status"] == "NEEDS REVIEW":
     print("needs review, not sent to Slack")
     raise SystemExit(0)
 text = f"*{TITLE[res['market']]}* · {res['date_ar']}"
+links = social_links.slack_line(f"post-{res['market']}", Path(res["files"][0]).parent)   # what post/social_post.py got out
+if links:
+    text += f"\n{links}"
 
 
 def call(method, data=None, raw=None, url=None, ctype=None):

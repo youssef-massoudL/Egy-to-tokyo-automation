@@ -57,13 +57,13 @@ def call(key, method, path, body=None, headers=None):
             return e.code, {"error": raw[:500]}
 
 
-def upload(key, clip):
+def upload(key, clip, ctype="video/mp4"):
     code, pre = call(key, "POST", "media/presign",
-                     {"filename": clip.name, "contentType": "video/mp4", "size": clip.stat().st_size})
+                     {"filename": clip.name, "contentType": ctype, "size": clip.stat().st_size})
     if code != 200:
         raise RuntimeError(f"presign failed: {code} {json.dumps(pre, ensure_ascii=False)[:400]}")
     put = urllib.request.Request(pre["uploadUrl"], data=clip.read_bytes(), method="PUT",
-                                 headers={"Content-Type": "video/mp4"})
+                                 headers={"Content-Type": ctype})
     urllib.request.urlopen(put, timeout=600).read()
     return pre["publicUrl"]
 
@@ -97,13 +97,13 @@ def accounts(key):
     return found
 
 
-def post(key, platform, account_id, text, media_url, idem, draft=False):
+def post(key, platform, account_id, text, media_url, idem, draft=False, kind="video", extra=EXTRA):
     entry = {"platform": platform, "accountId": account_id}
-    if platform in EXTRA:
-        entry["platformSpecificData"] = dict(EXTRA[platform])
+    if platform in extra:
+        entry["platformSpecificData"] = dict(extra[platform])
     if draft:   # Facebook only: an unpublished draft in Publishing Tools, not a post
         entry.setdefault("platformSpecificData", {})["facebookSettings"] = {"draft": True}
-    code, data = call(key, "POST", "posts", {"content": text, "mediaItems": [{"type": "video", "url": media_url}],
+    code, data = call(key, "POST", "posts", {"content": text, "mediaItems": [{"type": kind, "url": media_url}],
                                              "platforms": [entry], "publishNow": True},
                       headers={"Idempotency-Key": idem})
     if code == 409 and data.get("details", {}).get("existingPostId"):   # same content already sent within 24 h

@@ -239,22 +239,29 @@ def load_record(m, store, today, home, days=(6, 0, 1, 2, 3)):
     """Daily closes without the Kanz database: the seed in post/history/<m>.json (Kanz candles up to 19 Nov 2026) merged with
     the newest copy in <store>/<m>.json (kept in the GitHub release 'post-history' and refreshed after every OK run).
     If the session before today is missing (a missed run), it is added from TradingView's previous close on the previous
-    Sun-Thu date. Returns ([(date, close)] oldest first, (date, close) added or None)."""
+    Sun-Thu date. Returns ([(date, close)] oldest first, (date, close) added or None, trading days still without a close).
+    Only one session can be filled this way: anything in that third list was missed (or was a holiday), and the week,
+    streak and "lowest since" facts cannot be trusted until a person checks it."""
     closes = {}
     for p in (HERE / "history" / f"{m}.json", store / f"{m}.json"):
         if p.exists():
             closes.update({d: float(c) for d, c in json.loads(p.read_text(encoding="utf-8"))["closes"]})
     rec = sorted((dt.date.fromisoformat(d), c) for d, c in closes.items() if d < today.isoformat())
     prev = home["close"] - home["change_abs"]
-    filled = None
+    filled, gap = None, []
     if rec and not same_price(rec[-1][1], prev):
         d = today - dt.timedelta(days=1)
         while d.weekday() not in days:
             d -= dt.timedelta(days=1)
         if d > rec[-1][0]:
+            x = rec[-1][0] + dt.timedelta(days=1)
+            while x < d:
+                if x.weekday() in days:
+                    gap.append(x)
+                x += dt.timedelta(days=1)
             filled = (d, round(prev, 2))
             rec.append(filled)
-    return rec, filled
+    return rec, filled, gap
 
 
 def save_record(m, store, hist, today, close):
@@ -699,8 +706,12 @@ def main():
             hist = kanz_history(kanz, tz)
             src = "Kanz candle_cache"
         else:
-            hist, filled = load_record(key, Path(a.store), today, hm, cfg["days"])
+            hist, filled, gap = load_record(key, Path(a.store), today, hm, cfg["days"])
             src = "stored closes"
+            if gap:
+                status = "NEEDS REVIEW" if status == "OK" else status
+                notes.append(f"{name}: the stored closes have nothing for {', '.join(map(str, gap))}. If the market traded then, "
+                             f"the week, streak and \"lowest since\" lines are wrong: add those closes to post/history/{key}.json")
             if filled:
                 notes.append(f"{name}: previous close {f2(filled[1])} was missing from the stored closes: added from TradingView as {filled[0]}")
         fx = facts(hist, today, hm["close"])

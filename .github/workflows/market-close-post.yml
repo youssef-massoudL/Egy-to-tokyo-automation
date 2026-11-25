@@ -1,11 +1,11 @@
 name: Market close post
 on:
-  # Manual only (Actions -> Market close post -> Run workflow). The user turned the automatic runs off on 2026-11-20.
-  # They used to start with every reel run: Sun-Thu 13:30-16:30 Cairo -> Saudi + EGX, Mon-Fri 15:15-18:30 New York -> US.
-  # To switch that back on, add under "on:":
-  #   workflow_run:
-  #     workflows: ["Market close reel"]
-  #     types: [requested]
+  # Daily again from 2026-11-25 for Saudi + EGX: starts with every reel run, and posts only inside Sun-Thu 13:30-16:30 Cairo
+  # (the reel's outside timer fires at 14:15 and 15:15; the second one is the backup and skips what is already made).
+  # The US post stays manual (Actions -> Market close post -> Run workflow).
+  workflow_run:
+    workflows: ["Market close reel"]
+    types: [requested]
   workflow_dispatch:
     inputs:
       market:
@@ -31,6 +31,10 @@ on:
         default: false
       redo:
         description: "Real run only: make today's posts again even if they were already made (replaces them, sends to Slack)"
+        type: boolean
+        default: false
+      social_test:
+        description: "Test run only: private social test through Zernio (Facebook gets an unpublished draft, the rest is skipped)"
         type: boolean
         default: false
 concurrency:
@@ -59,17 +63,21 @@ jobs:
       SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
       SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID || secrets.CHANNEL || vars.SLACK_CHANNEL_ID }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      # Social media (post/social_post.py): the same switch, accounts and key as the reel.
+      # To stop only these posts, set the repo variable CLOSE_POST_SOCIAL_ENABLED to false.
+      SOCIAL_TEST: ${{ inputs.social_test && 'true' || 'false' }}
+      ZERNIO_POST_ENABLED: ${{ vars.CLOSE_POST_SOCIAL_ENABLED != 'false' && vars.ZERNIO_POST_ENABLED || 'false' }}
+      ZERNIO_PLATFORMS: ${{ vars.ZERNIO_PLATFORMS }}
+      ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY || secrets.ZERNIO }}
     steps:
       - name: Guard (time window, which markets)
         id: guard
         run: |
           H=$(TZ=Africa/Cairo date +%H%M); DOW=$(TZ=Africa/Cairo date +%u)              # 1 Mon .. 5 Fri, 6 Sat, 7 Sun
-          NH=$(TZ=America/New_York date +%H%M); NDOW=$(TZ=America/New_York date +%u)
           M=""
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             if [ "$DOW" -ne 5 ] && [ "$DOW" -ne 6 ] && [ "$H" -ge 1330 ] && [ "$H" -le 1630 ]; then M="tasi egx"; fi
-            if [ "$NDOW" -le 5 ] && [ "$NH" -ge 1515 ] && [ "$NH" -le 1830 ]; then M="us"; fi
-            [ -z "$M" ] && echo "reel run at $H Cairo / $NH New York: not a market close, no post"
+            [ -z "$M" ] && echo "reel run at $H Cairo: not the Saudi / EGX close, no post"
           else
             case "${{ inputs.market }}" in
               tasi+egx) M="tasi egx" ;; all) M="tasi egx us" ;; *) M="${{ inputs.market }}" ;;
