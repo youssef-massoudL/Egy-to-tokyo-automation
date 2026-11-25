@@ -6,6 +6,11 @@ on:
   workflow_run:
     workflows: ["Market close reel"]
     types: [requested]
+  # pushing .github/post-test-run.json starts a test run of Saudi + EGX that also goes on the website.
+  # It is always a test: never Slack, never social media, whatever the file says.
+  push:
+    branches: [main]
+    paths: [".github/post-test-run.json"]
   workflow_dispatch:
     inputs:
       market:
@@ -38,7 +43,7 @@ on:
         type: boolean
         default: false
 concurrency:
-  group: ${{ inputs.test && format('post-test-{0}', github.run_id) || 'close-post' }}
+  group: ${{ (github.event_name == 'push' || inputs.test) && format('post-test-{0}', github.run_id) || 'close-post' }}
   cancel-in-progress: false
 permissions:
   contents: write
@@ -53,9 +58,9 @@ jobs:
       name: github-pages
     env:
       GH_TOKEN: ${{ github.token }}
-      TEST: ${{ inputs.test && '1' || '0' }}
+      TEST: ${{ (inputs.test || github.event_name == 'push') && '1' || '0' }}
       TEST_DATE: ${{ inputs.date }}
-      SITE_TEST: ${{ inputs.site && 'true' || 'false' }}
+      SITE_TEST: ${{ (inputs.site || github.event_name == 'push') && 'true' || 'false' }}
       SLACK_TEST: ${{ inputs.slack && 'true' || 'false' }}
       REDO: ${{ inputs.redo && 'true' || 'false' }}
       PYTHONIOENCODING: utf-8
@@ -66,7 +71,7 @@ jobs:
       # Social media (post/social_post.py): the same switch, accounts and key as the reel.
       # To stop only these posts, set the repo variable CLOSE_POST_SOCIAL_ENABLED to false.
       SOCIAL_TEST: ${{ inputs.social_test && 'true' || 'false' }}
-      ZERNIO_POST_ENABLED: ${{ vars.CLOSE_POST_SOCIAL_ENABLED != 'false' && vars.ZERNIO_POST_ENABLED || 'false' }}
+      ZERNIO_POST_ENABLED: ${{ github.event_name != 'push' && vars.CLOSE_POST_SOCIAL_ENABLED != 'false' && vars.ZERNIO_POST_ENABLED || 'false' }}
       ZERNIO_PLATFORMS: ${{ vars.ZERNIO_PLATFORMS }}
       ZERNIO_API_KEY: ${{ secrets.ZERNIO_API_KEY || secrets.ZERNIO }}
     steps:
@@ -78,6 +83,8 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             if [ "$DOW" -ne 5 ] && [ "$DOW" -ne 6 ] && [ "$H" -ge 1330 ] && [ "$H" -le 1630 ]; then M="tasi egx"; fi
             [ -z "$M" ] && echo "reel run at $H Cairo: not the Saudi / EGX close, no post"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            M="tasi egx"
           else
             case "${{ inputs.market }}" in
               tasi+egx) M="tasi egx" ;; all) M="tasi egx us" ;; *) M="${{ inputs.market }}" ;;
